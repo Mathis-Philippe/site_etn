@@ -110,7 +110,7 @@ export default function AboutPage() {
        favicon="/images/favicon.png"
      />
     <main className="min-h-screen bg-white">
-      {/* Hero Section */}
+      
       <section className="bg-blue-900 text-white py-16 lg:py-20">
         <div className="container mx-auto px-6">
           <div className="max-w-4xl">
@@ -129,7 +129,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Notre Histoire */}
+  
       <section className="py-20 bg-white">
         <div className="container mx-auto px-6">
           <div className="max-w-3xl mx-auto text-center mb-16">
@@ -163,7 +163,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Nos Valeurs */}
+      
       <section className="py-20 bg-gray-50">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
@@ -192,7 +192,6 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Notre Expertise */}
       <section className="py-20 bg-white">
         <div className="container mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -240,8 +239,7 @@ export default function AboutPage() {
           </div>
         </div>
       </section>
-
-      {/* Stats Section */}
+      
       <section className="py-16 bg-blue-900 text-white">
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
@@ -257,7 +255,6 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Notre Engagement */}
       <section className="py-20 bg-white">
         <div className="container mx-auto px-6">
           <div className="max-w-4xl mx-auto">
@@ -312,7 +309,6 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* CTA Section */}
       <section className="py-20 bg-yellow-400">
         <div className="container mx-auto px-6">
           <div className="max-w-4xl mx-auto text-center">
@@ -336,7 +332,6 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Contact Info Footer */}
       <section className="py-12 bg-gray-50">
         <div className="container mx-auto px-6">
           <div className="max-w-4xl mx-auto">

@@ -1,6 +1,4 @@
-// src/app/api/products/route.ts
 import { NextResponse } from 'next/server';
-// ✅ L'import crucial est ici (on utilise le fichier du dossier lib)
 import { prisma } from '../../../lib/prisma'; 
 
 export const dynamic = 'force-dynamic';

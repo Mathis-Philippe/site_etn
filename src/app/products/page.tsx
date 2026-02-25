@@ -16,7 +16,21 @@ import {
   Star,
   Truck,
   CheckCircle,
-  X
+  X,
+  Droplets,
+  Wind,
+  Link2,
+  Circle,
+  Plug,
+  CircleDashed,
+  Lock,
+  ToggleLeft,
+  Hexagon,
+  Shield,
+  Layers,
+  Disc,
+  ArrowLeftRight,
+  Activity
 } from 'lucide-react';
 
 export default function ProductPage() {
@@ -32,11 +46,37 @@ export default function ProductPage() {
   const { cart, addToCart, removeFromCart, updateQuantity, getTotalPrice, getCartCount } = useCart();
 
   const categories = [
-    { id: 'all', name: 'Tous les produits', icon: <Package className="w-5 h-5" /> },
-    { id: 'hydraulique', name: 'Hydraulique', icon: <Gauge className="w-5 h-5" /> },
-    { id: 'pneumatique', name: 'Pneumatique', icon: <Wrench className="w-5 h-5" /> },
-    { id: 'raccords', name: 'Raccords', icon: <Settings className="w-5 h-5" /> },
-    { id: 'flexibles', name: 'Flexibles', icon: <Package className="w-5 h-5" /> }
+    { id: 'all', name: 'Tous les produits', icon: <Package className="w-4 h-4" /> },
+    { id: 'Graisseurs', name: 'Graisseurs', icon: <Droplets className="w-4 h-4" /> },
+    { id: 'Pneumatique', name: 'Pneumatique', icon: <Wind className="w-4 h-4" /> },
+    { id: 'Raccords Résine', name: 'Raccords Résine', icon: <Link2 className="w-4 h-4" /> },
+    { id: 'Jupes à Sertir', name: 'Jupes à Sertir', icon: <Hexagon className="w-4 h-4" /> },
+    { id: 'Laiton', name: 'Laiton', icon: <Settings className="w-4 h-4" /> },
+    { id: 'Colliers', name: 'Colliers', icon: <Circle className="w-4 h-4" /> },
+    { id: 'Raccords BP', name: 'Raccords BP', icon: <Link2 className="w-4 h-4" /> },
+    { id: 'Coupleurs Air', name: 'Coupleurs Air', icon: <Plug className="w-4 h-4" /> },
+    { id: 'Tuyaux Basse Pression', name: 'Tuyaux Basse Pression', icon: <Activity className="w-4 h-4" /> },
+    { id: 'Joints', name: 'Joints', icon: <CircleDashed className="w-4 h-4" /> },
+    { id: 'Bouchons', name: 'Bouchons', icon: <Lock className="w-4 h-4" /> },
+    { id: 'Vannes', name: 'Vannes', icon: <ToggleLeft className="w-4 h-4" /> },
+    { id: 'Collier Stauff', name: 'Collier Stauff', icon: <Circle className="w-4 h-4" /> },
+    { id: 'Raccords à bagues N', name: 'Raccords à bagues N', icon: <Link2 className="w-4 h-4" /> },
+    { id: 'Raccords à bagues S', name: 'Raccords à bagues S', icon: <Link2 className="w-4 h-4" /> },
+    { id: 'Raccords à bagues Inox', name: 'Raccords à bagues Inox', icon: <Link2 className="w-4 h-4" /> },
+    { id: 'Raccords à bagues L', name: 'Raccords à bagues L', icon: <Link2 className="w-4 h-4" /> },
+    { id: 'Raccords à bagues LL', name: 'Raccords à bagues LL', icon: <Link2 className="w-4 h-4" /> },
+    { id: 'Jupes', name: 'Jupes', icon: <Hexagon className="w-4 h-4" /> },
+    { id: 'Embouts', name: 'Embouts', icon: <Plug className="w-4 h-4" /> },
+    { id: 'Inox à Sertir', name: 'Inox à Sertir', icon: <Hexagon className="w-4 h-4" /> },
+    { id: 'Câble Sécurité', name: 'Câble Sécurité', icon: <Shield className="w-4 h-4" /> },
+    { id: 'Gaines de Protections', name: 'Gaines de Protections', icon: <Layers className="w-4 h-4" /> },
+    { id: 'Coupleurs', name: 'Coupleurs', icon: <Plug className="w-4 h-4" /> },
+    { id: 'Brides', name: 'Brides', icon: <Disc className="w-4 h-4" /> },
+    { id: 'Fonte', name: 'Fonte', icon: <Hexagon className="w-4 h-4" /> },
+    { id: 'Robinets', name: 'Robinets', icon: <Droplets className="w-4 h-4" /> },
+    { id: 'Adaptateurs', name: 'Adaptateurs', icon: <ArrowLeftRight className="w-4 h-4" /> },
+    { id: 'Tuyaux', name: 'Tuyaux', icon: <Activity className="w-4 h-4" /> },
+    { id: 'Manomètres', name: 'Manomètres', icon: <Gauge className="w-4 h-4" /> }
   ];
 
   useEffect(() => {
@@ -54,8 +94,7 @@ export default function ProductPage() {
     fetchProducts();
   }, []);
 
-
-    const filteredProducts = products.filter(product => {
+  const filteredProducts = products.filter(product => {
     const matchCategory = selectedCategory === 'all' || product.category === selectedCategory;
     const matchSearch =
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -162,22 +201,25 @@ export default function ProductPage() {
         <section className="py-12">
           <div className="container mx-auto px-6">
             <div className="flex flex-col lg:flex-row gap-8">
-              <aside className={`lg:w-64 space-y-6 ${showFilters ? 'block' : 'hidden lg:block'}`}>
-                <div className="bg-white rounded-lg shadow-lg p-6">
-                  <h3 className="text-lg font-bold text-blue-900 mb-4">Catégories</h3>
-                  <div className="space-y-2">
+              <aside className={`lg:w-64 space-y-6 flex-shrink-0 ${showFilters ? 'block' : 'hidden lg:block'}`}>
+                <div className="bg-white rounded-lg shadow-lg p-5">
+                  <h3 className="text-lg font-bold text-blue-900 mb-4 px-2">Catégories</h3>
+                  
+                  <div className="space-y-1 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                     {categories.map(category => (
                       <button
                         key={category.id}
                         onClick={() => setSelectedCategory(category.id)}
-                        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
+                        className={`w-full flex items-center space-x-3 px-3 py-2 rounded-md transition-all text-sm ${
                           selectedCategory === category.id
-                            ? 'bg-yellow-400 text-white'
-                            : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                            ? 'bg-blue-50 text-blue-900 font-semibold border-l-4 border-yellow-400'
+                            : 'bg-transparent text-gray-600 hover:bg-gray-50 hover:text-blue-900'
                         }`}
                       >
-                        {category.icon}
-                        <span className="font-medium">{category.name}</span>
+                        <span className={selectedCategory === category.id ? "text-yellow-500" : "text-gray-400"}>
+                          {category.icon}
+                        </span>
+                        <span className="text-left">{category.name}</span>
                       </button>
                     ))}
                   </div>
@@ -194,7 +236,7 @@ export default function ProductPage() {
                 </div>
               </aside>
 
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <div className="mb-6 flex justify-between items-center">
                   <p className="text-gray-600">
                     <span className="font-semibold text-blue-900">{sortedProducts.length}</span> produits trouvés
@@ -234,14 +276,14 @@ export default function ProductPage() {
                           </div>
 
                           <div className="p-6 pb-2">
-                            <h3 className="text-lg font-bold text-blue-900 mb-2 hover:underline">{product.name}</h3>
+                            <h3 className="text-lg font-bold text-blue-900 mb-2 hover:underline line-clamp-1">{product.name}</h3>
                             <p className="text-sm text-gray-600 mb-3 line-clamp-2">{product.description}</p>
 
                             <div className="mb-4 space-y-1">
                               {product.specs && product.specs.slice(0, 2).map((spec, index) => (
                                 <p key={index} className="text-xs text-gray-500 flex items-center">
-                                  <CheckCircle className="w-3 h-3 text-yellow-400 mr-1" />
-                                  {spec}
+                                  <CheckCircle className="w-3 h-3 text-yellow-400 mr-1 flex-shrink-0" />
+                                  <span className="line-clamp-1">{spec}</span>
                                 </p>
                               ))}
                             </div>
@@ -405,7 +447,7 @@ export default function ProductPage() {
       {ChevronisVisible && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-6 right-6 p-3 rounded-full bg-blue-900 text-white shadow-lg hover:bg-blue-800 transition-all"
+          className="fixed bottom-6 right-6 p-3 rounded-full bg-blue-900 text-white shadow-lg hover:bg-blue-800 transition-all z-50"
         >
           <ChevronUpCircle className="w-6 h-6" />
         </button>

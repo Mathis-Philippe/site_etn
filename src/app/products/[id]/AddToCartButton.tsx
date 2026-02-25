@@ -14,7 +14,7 @@ export default function AddToCartButton({ product }: AddToCartButtonProps) {
     <button 
       onClick={() => addToCart(product)}
       disabled={!product.inStock}
-      className={`px-8 py-4 rounded-xl font-bold text-lg transition-all ${
+      className={`px-6 py-4 rounded-xl font-bold text-lg transition-all ${
         product.inStock 
         ? 'bg-yellow-400 hover:bg-yellow-500 text-blue-900 shadow-md hover:shadow-lg' 
         : 'bg-gray-200 text-gray-500 cursor-not-allowed'

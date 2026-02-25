@@ -103,7 +103,6 @@ export default function ContactPage() {
           favicon="/images/favicon.png"
         />
     <main className="min-h-screen bg-white">
-      {/* Hero Section */}
       <section className="bg-blue-900 text-white py-16 lg:py-20">
         <div className="container mx-auto px-6">
           <div className="max-w-3xl">
@@ -118,7 +117,6 @@ export default function ContactPage() {
         </div>
       </section>
 
-      {/* Contact Info Cards */}
       <section className="py-12 bg-gray-50">
         <div className="container mx-auto px-6">
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -143,11 +141,9 @@ export default function ContactPage() {
         </div>
       </section>
 
-      {/* Main Content: Form + Map */}
       <section className="py-20">
         <div className="container mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-12">
-            {/* Contact Form */}
             <div>
               <div className="mb-8">
                 <h2 className="text-3xl font-bold text-blue-900 mb-4">
@@ -160,7 +156,6 @@ export default function ContactPage() {
 
               <div className="space-y-6">
                 <div className="grid md:grid-cols-2 gap-6">
-                  {/* Name Field */}
                   <div>
                     <label className="block text-sm font-medium text-blue-900 mb-2">
                       Nom complet *
@@ -178,7 +173,6 @@ export default function ContactPage() {
                     </div>
                   </div>
 
-                  {/* Company Field */}
                   <div>
                     <label className="block text-sm font-medium text-blue-900 mb-2">
                       Société
@@ -198,7 +192,6 @@ export default function ContactPage() {
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-6">
-                  {/* Email Field */}
                   <div>
                     <label className="block text-sm font-medium text-blue-900 mb-2">
                       Email *
@@ -216,7 +209,6 @@ export default function ContactPage() {
                     </div>
                   </div>
 
-                  {/* Phone Field */}
                   <div>
                     <label className="block text-sm font-medium text-blue-900 mb-2">
                       Téléphone *
@@ -235,7 +227,6 @@ export default function ContactPage() {
                   </div>
                 </div>
 
-                {/* Subject Field */}
                 <div>
                   <label className="block text-sm font-medium text-blue-900 mb-2">
                     Sujet *
@@ -254,8 +245,6 @@ export default function ContactPage() {
                     <option value="autre">Autre demande</option>
                   </select>
                 </div>
-
-                {/* Message Field */}
                 <div>
                   <label className="block text-sm font-medium text-blue-900 mb-2">
                     Message *
@@ -272,8 +261,6 @@ export default function ContactPage() {
                     ></textarea>
                   </div>
                 </div>
-
-                {/* Submit Button */}
                 <div>
                   {submitted ? (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center space-x-3">
@@ -299,9 +286,7 @@ export default function ContactPage() {
               </div>
             </div>
 
-            {/* Map and Info */}
             <div className="space-y-8">
-              {/* Map */}
               <div>
                 <h2 className="text-3xl font-bold text-blue-900 mb-6">
                   Notre localisation
@@ -320,7 +305,6 @@ export default function ContactPage() {
                 </div>
               </div>         
 
-              {/* Additional Info Box */}
               <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-6">
                 <h3 className="text-xl font-bold text-blue-900 mb-4">
                   Besoin d&apos;une intervention rapide ?
@@ -333,7 +317,6 @@ export default function ContactPage() {
                 </button>
               </div>
 
-              {/* Opening Hours Detail */}
               <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-200">
                 <h3 className="text-xl font-bold text-blue-900 mb-4 flex items-center">
                   <Clock className="w-6 h-6 text-yellow-400 mr-2" />
@@ -357,7 +340,6 @@ export default function ContactPage() {
         </div>
       </section>
 
-      {/* CTA Section */}
       <section className="py-16 bg-blue-900 text-white">
         <div className="container mx-auto px-6 text-center">
           <h2 className="text-3xl font-bold mb-4">

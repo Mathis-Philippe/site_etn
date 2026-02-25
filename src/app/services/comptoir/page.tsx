@@ -35,11 +35,9 @@ const [ChevronisVisible, ChevronsetIsVisible] = useState(false);
   
   return (
     <>
-      {/* SEO */}
       <DynamicHead title="ETN - Service Comptoir" favicon="/images/favicon.png" />
 
       <main className="min-h-screen bg-white">
-        {/* Hero section */}
         <section className="relative bg-gray-50 py-16">
           <div className="container mx-auto px-6 text-center">
             <h1 className="text-4xl md:text-5xl font-bold text-blue-900 mb-6">
@@ -53,7 +51,6 @@ const [ChevronisVisible, ChevronsetIsVisible] = useState(false);
           </div>
         </section>
 
-        {/* Comptoir */}
         <section className="py-20 container mx-auto px-6 grid md:grid-cols-2 gap-12 items-center">
           <div>
             <h2 className="text-2xl font-bold text-blue-900 mb-4">Comptoir</h2>
@@ -81,7 +78,6 @@ const [ChevronisVisible, ChevronsetIsVisible] = useState(false);
           </div>
         </section>
 
-        {/* Magasin */}
         <section className="py-20 bg-gray-50">
           <div className="container mx-auto px-6 grid md:grid-cols-2 gap-12 items-center">
             <div className="relative w-full h-72 md:h-96 order-2 md:order-1">
@@ -111,7 +107,6 @@ const [ChevronisVisible, ChevronsetIsVisible] = useState(false);
           </div>
         </section>
 
-        {/* Expédition */}
         <section className="py-20 container mx-auto px-6 grid md:grid-cols-2 gap-12 items-center">
           <div>
             <h2 className="text-2xl font-bold text-blue-900 mb-4">Expédition</h2>

@@ -30,7 +30,6 @@ export default function Header() {
       </div>
       <div className="bg-white shadow-sm sticky top-0 z-50">
         <div className="container mx-auto flex justify-between items-center py-6 px-6">
-          {/* Logo */}
           <Link href="/">
             <Image 
               src="/images/etn.webp" 
@@ -41,7 +40,6 @@ export default function Header() {
             />
           </Link>
 
-          {/* Navigation Desktop */}
           <nav className="hidden md:flex space-x-8 text-gray-700 font-medium">
             <Link href="/" className="hover:text-blue-700 transition-colors">
               Accueil
@@ -66,7 +64,6 @@ export default function Header() {
             </Link>
           </nav>
 
-          {/* Bouton burger mobile */}
           <button
             className="md:hidden flex flex-col space-y-1"
             onClick={() => setIsOpen(!isOpen)}
@@ -78,7 +75,6 @@ export default function Header() {
           </button>
         </div>
 
-        {/* Menu mobile */}
         {isOpen && (
           <div className="md:hidden bg-white border-t border-gray-200 shadow-sm py-4 px-6 space-y-4">
             <Link

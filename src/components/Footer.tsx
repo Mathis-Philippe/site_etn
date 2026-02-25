@@ -6,7 +6,7 @@ export default function Footer() {
       <div className="container mx-auto px-4">
         <div className="flex flex-col lg:flex-row lg:justify-around gap-8">
           
-          {/* ETN */}
+          
           <div>
             <p className="py-2 font-bold">ETN</p>
             <ul className="list-none space-y-1">
@@ -28,7 +28,6 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* NOS SERVICES */}
           <div>
             <p className="py-2 font-bold">NOS SERVICES</p>
             <ul className="list-none space-y-1">
@@ -47,7 +46,6 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* NOS PRODUITS */}
           <div>
             <p className="py-2 font-bold">NOS PRODUITS</p>
             <ul className="list-none space-y-1">
@@ -69,7 +67,6 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* ACCÈS | CONTACT */}
           <div>
             <p className="py-2 font-bold">ACCÈS | CONTACT</p>
             <ul className="list-none space-y-1">

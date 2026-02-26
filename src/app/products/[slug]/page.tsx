@@ -5,9 +5,9 @@ import { Product } from '../../../context/CartContext';
 import { prisma } from '../../../lib/prisma';
 import AddToCartButton from './AddToCartButton';
 
-async function getProduct(id: string): Promise<Product | null> {
+async function getProduct(slug: string): Promise<Product | null> {
   const product = await prisma.product.findUnique({
-    where: { id: parseInt(id) },
+    where: { slug: slug },
   });
   
   if (!product) return null;
@@ -20,9 +20,9 @@ async function getProduct(id: string): Promise<Product | null> {
   };
 }
 
-export default async function SingleProductPage({ params }: { params: { id: string } }) {
+export default async function SingleProductPage({ params }: { params: { slug: string } }) {
   const resolvedParams = await params;
-  const product = await getProduct(resolvedParams.id);
+  const product = await getProduct(resolvedParams.slug);
 
   if (!product) {
     notFound();

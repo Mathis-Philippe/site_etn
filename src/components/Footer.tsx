@@ -50,19 +50,19 @@ export default function Footer() {
             <p className="py-2 font-bold">NOS PRODUITS</p>
             <ul className="list-none space-y-1">
               <li>
-                <Link href="#">Gamme Pneumatique</Link>
+                <Link href="/gammes/pneumatique">Gamme Pneumatique</Link>
               </li>
               <li>
-                <Link href="#">Gamme Haute pression</Link>
+                <Link href="/gammes/haute-pression">Gamme Haute pression</Link>
               </li>
               <li>
-                <Link href="#">Gamme Industrie</Link>
+                <Link href="/gammes/industries">Gamme Industrie</Link>
               </li>
               <li>
-                <Link href="#">Gamme Lavage</Link>
+                <Link href="/gammes/lavage">Gamme Lavage</Link>
               </li>
               <li>
-                <Link href="#">Gamme Freinage, Durite, Aviation</Link>
+                <Link href="/gammes/freinage-durite-aviation">Gamme Freinage, Durite, Aviation</Link>
               </li>
             </ul>
           </div>

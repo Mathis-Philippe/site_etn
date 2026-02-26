@@ -173,7 +173,6 @@ export default function ProductPage() {
     }
   ];
 
-  // ✅ Fonctions du panier avec types
   const addToCart = (product: Product) => {
     const existingItem = cart.find(item => item.id === product.id);
     if (existingItem) {
@@ -205,7 +204,6 @@ export default function ProductPage() {
     return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
 
-  // ✅ Filtrage et tri
   const filteredProducts = products.filter(product => {
     const matchCategory = selectedCategory === 'all' || product.category === selectedCategory;
     const matchSearch =
@@ -242,7 +240,6 @@ export default function ProductPage() {
       });
     };
 
-  // ✅ Le JSX original reste inchangé
   return (
     <>
       <DynamicHead 
@@ -250,7 +247,6 @@ export default function ProductPage() {
         favicon="/images/favicon.png"
     />
     <main className="min-h-screen bg-white">
-      {/* Hero Section */}
       <section className="bg-blue-900 text-white py-16">
         <div className="container mx-auto px-6">
           <div className="max-w-3xl">
@@ -263,11 +259,9 @@ export default function ProductPage() {
         </div>
       </section>
 
-      {/* Search and Filter Bar */}
       <section className="bg-gray-50 py-6 sticky top-0 z-40 shadow-md">
         <div className="container mx-auto px-6">
           <div className="flex flex-col lg:flex-row gap-4 items-center">
-            {/* Search */}
             <div className="relative flex-1 w-full">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
@@ -279,7 +273,6 @@ export default function ProductPage() {
               />
             </div>
 
-            {/* Sort */}
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
@@ -291,7 +284,6 @@ export default function ProductPage() {
               <option value="rating">Mieux notés</option>
             </select>
 
-            {/* Filter Toggle */}
             <button
               onClick={() => setShowFilters(!showFilters)}
               className="lg:hidden bg-yellow-400 text-white px-6 py-3 rounded-lg font-semibold flex items-center space-x-2 w-full justify-center"
@@ -300,7 +292,6 @@ export default function ProductPage() {
               <span>Filtres</span>
             </button>
 
-            {/* Cart Button */}
             <button
               onClick={() => setShowCart(!showCart)}
               className="bg-blue-900 text-white px-6 py-3 rounded-lg font-semibold flex items-center space-x-2 hover:bg-blue-800 transition-all relative"
@@ -317,13 +308,10 @@ export default function ProductPage() {
         </div>
       </section>
 
-      {/* Main Content */}
       <section className="py-12">
         <div className="container mx-auto px-6">
           <div className="flex flex-col lg:flex-row gap-8">
-            {/* Sidebar Filters */}
             <aside className={`lg:w-64 space-y-6 ${showFilters ? 'block' : 'hidden lg:block'}`}>
-              {/* Categories */}
               <div className="bg-white rounded-lg shadow-lg p-6">
                 <h3 className="text-lg font-bold text-blue-900 mb-4">Catégories</h3>
                 <div className="space-y-2">
@@ -344,7 +332,6 @@ export default function ProductPage() {
                 </div>
               </div>
 
-              {/* Contact */}
               <div className="bg-blue-900 text-white rounded-lg p-6">
                 <h3 className="text-lg font-bold mb-2">Besoin d&apos;aide ?</h3>
                 <p className="text-sm text-white/80 mb-4">
@@ -356,7 +343,6 @@ export default function ProductPage() {
               </div>
             </aside>
 
-            {/* Products Grid */}
             <div className="flex-1">
               <div className="mb-6 flex justify-between items-center">
                 <p className="text-gray-600">
@@ -370,7 +356,6 @@ export default function ProductPage() {
                     key={product.id}
                     className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-102"
                   >
-                    {/* Product Image */}
                     <div className="relative bg-gray-200 h-48 flex items-center justify-center">
                       <Package className="w-16 h-16 text-gray-400" />
                       {product.badge && (
@@ -387,12 +372,10 @@ export default function ProductPage() {
                       )}
                     </div>
 
-                    {/* Product Info */}
                     <div className="p-6">
                       <h3 className="text-lg font-bold text-blue-900 mb-2">{product.name}</h3>
                       <p className="text-sm text-gray-600 mb-3">{product.description}</p>
 
-                      {/* Specs */}
                       <div className="mb-4 space-y-1">
                         {product.specs.slice(0, 2).map((spec, index) => (
                           <p key={index} className="text-xs text-gray-500 flex items-center">
@@ -402,7 +385,6 @@ export default function ProductPage() {
                         ))}
                       </div>
 
-                      {/* Rating */}
                       <div className="flex items-center mb-4">
                         <div className="flex items-center">
                           {[...Array(5)].map((_, i) => (
@@ -421,7 +403,6 @@ export default function ProductPage() {
                         </span>
                       </div>
 
-                      {/* Price and Action */}
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="flex items-center space-x-2">
@@ -457,7 +438,6 @@ export default function ProductPage() {
         </div>
       </section>
 
-      {/* Cart Sidebar */}
       {showCart && (
         <div className="fixed inset-0 bg-black/50 z-50 flex justify-end">
           <div className="bg-white w-full max-w-md h-full overflow-y-auto">

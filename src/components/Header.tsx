@@ -45,7 +45,7 @@ export default function Header() {
               Accueil
             </Link>
             <Link
-              href="/products"
+              href="/produits"
               className="hover:text-blue-700 transition-colors"
             >
               Produits

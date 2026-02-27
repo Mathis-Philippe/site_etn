@@ -82,7 +82,7 @@ export default function ProductPage() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch('/api/products');
+        const res = await fetch('/api/produits');
         const data = await res.json();
         setProducts(data);
       } catch (error) {
@@ -258,7 +258,7 @@ export default function ProductPage() {
                         key={product.id}
                         className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-102 flex flex-col"
                       >
-                        <Link href={`/products/${product.slug}`} className="flex-1 block cursor-pointer">
+                        <Link href={`/produits/${product.slug}`} className="flex-1 block cursor-pointer">
                           <div className="relative bg-gray-200 h-48 flex items-center justify-center">
                             <Package className="w-16 h-16 text-gray-400" />
                             {product.badge && (

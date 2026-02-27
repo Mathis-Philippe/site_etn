@@ -79,14 +79,17 @@ export default function HomePage() {
     {
       title: "Gamme Pneumatique",
       items: ["Raccords pneumatiques", "Coupleurs pneumatiques", "Composants pneumatiques", "Vannes basse pression"],
+      link: "/gammes/pneumatique"
     },
     {
       title: "Gamme Haute Pression",
       items: ["Flexibles hydrauliques", "Embouts et raccords hydrauliques", "Adaptateurs", "Manomètres", "Brides et coupleurs"],
+      link: "/gammes/haute-pression"
     },
     {
       title: "Gamme Industries",
       items: ["Onduleux Inox", "Tuyaux industriels", "Raccords symétriques", "Colliers de serrage"],
+      link: "/gammes/industries"
     }
   ];
 
@@ -251,9 +254,12 @@ export default function HomePage() {
                   </ul>
                 </div>
                 <div className="flex justify-start mt-4">
-                  <button className="bg-yellow-400 text-white px-6 py-2 rounded text-sm font-medium hover:bg-yellow-500 transition-all cursor-pointer">
+                  <a
+                    href={range.link} 
+                    className="inline-block bg-yellow-400 text-white px-6 py-2 rounded text-sm font-medium hover:bg-yellow-500 transition-all cursor-pointer"
+                  >
                     Découvrir
-                  </button>
+                  </a>
                 </div>
               </div>
             ))}

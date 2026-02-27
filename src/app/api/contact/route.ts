@@ -3,7 +3,7 @@ import nodemailer from 'nodemailer';
 
 export async function POST(request: Request) {
   try {
-    const { name, email, subject, message } = await request.json();
+    const { name, email, company, phone, subject, message } = await request.json();
 
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
@@ -27,7 +27,9 @@ export async function POST(request: Request) {
       html: `
         <h3>Nouveau message depuis le site web ETN</h3>
         <p><strong>Nom :</strong> ${name}</p>
+        <p><strong>Entreprise :</strong> ${company}</p>
         <p><strong>Email :</strong> ${email}</p>
+        <p><strong>Téléphone :</strong> ${phone}</p>
         <p><strong>Sujet :</strong> ${subject}</p>
         <br/>
         <p><strong>Message :</strong></p>

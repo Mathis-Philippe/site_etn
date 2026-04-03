@@ -4,80 +4,89 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ChevronUpCircle } from 'lucide-react';
 import DynamicHead from '../../components/DynamicHead';
-import { CartItem, Product, useCart } from '../../context/CartContext';
+import { Product, useCart } from '../../context/CartContext';
 import {
-  Search,
-  Filter,
-  ShoppingCart,
-  Package,
-  Gauge,
-  Wrench,
-  Settings,
-  Star,
-  Truck,
-  CheckCircle,
-  X,
-  Droplets,
-  Wind,
-  Link2,
-  Circle,
-  Plug,
-  CircleDashed,
-  Lock,
-  ToggleLeft,
-  Hexagon,
-  Shield,
-  Layers,
-  Disc,
-  ArrowLeftRight,
-  Activity
+  Search, ShoppingCart, Package, Star, X,
+  ChevronRight, ArrowLeft, SlidersHorizontal
 } from 'lucide-react';
+
+// PLACEHOLDERS IMAGES (À remplacer par tes vraies images)
+const placeholderMainCat = 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=800'; // Image industrielle générique
+const placeholderSubCat = 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&q=80&w=400';
+const placeholderProduct = 'https://images.unsplash.com/photo-1530825894095-9c1851214068?auto=format&fit=crop&q=80&w=400';
+
+// HIÉRARCHIE DES CATÉGORIES
+const categoryTree = [
+  {
+    id: 'fluides', name: 'Gestion des Fluides', image: placeholderMainCat,
+    subCategories: [
+      { id: 'Graisseurs', name: 'Graisseurs', image: placeholderSubCat },
+      { id: 'Vannes', name: 'Vannes', image: placeholderSubCat },
+      { id: 'Robinets', name: 'Robinets', image: placeholderSubCat },
+      { id: 'Manomètres', name: 'Manomètres', image: placeholderSubCat },
+    ]
+  },
+  {
+    id: 'pneumatique', name: 'Pneumatique & Air', image: placeholderMainCat,
+    subCategories: [
+      { id: 'Pneumatique', name: 'Pneumatique', image: placeholderSubCat },
+      { id: 'Coupleurs Air', name: 'Coupleurs Air', image: placeholderSubCat },
+      { id: 'Tuyaux Basse Pression', name: 'Tuyaux Basse Pression', image: placeholderSubCat },
+    ]
+  },
+  {
+    id: 'raccords', name: 'Raccords & Connectique', image: placeholderMainCat,
+    subCategories: [
+      { id: 'Raccords Résine', name: 'Raccords Résine', image: placeholderSubCat },
+      { id: 'Raccords BP', name: 'Raccords BP', image: placeholderSubCat },
+      { id: 'Laiton', name: 'Laiton', image: placeholderSubCat },
+      { id: 'Raccords à bagues N', name: 'Raccords à bagues N', image: placeholderSubCat },
+      { id: 'Raccords à bagues S', name: 'Raccords à bagues S', image: placeholderSubCat },
+      { id: 'Raccords à bagues Inox', name: 'Raccords à bagues Inox', image: placeholderSubCat },
+      { id: 'Adaptateurs', name: 'Adaptateurs', image: placeholderSubCat },
+    ]
+  },
+  {
+    id: 'sertissage', name: 'Sertissage & Flexibles', image: placeholderMainCat,
+    subCategories: [
+      { id: 'Jupes à Sertir', name: 'Jupes à Sertir', image: placeholderSubCat },
+      { id: 'Jupes', name: 'Jupes', image: placeholderSubCat },
+      { id: 'Embouts', name: 'Embouts', image: placeholderSubCat },
+      { id: 'Inox à Sertir', name: 'Inox à Sertir', image: placeholderSubCat },
+      { id: 'Tuyaux', name: 'Tuyaux', image: placeholderSubCat },
+    ]
+  },
+  {
+    id: 'accessoires', name: 'Accessoires & Fixations', image: placeholderMainCat,
+    subCategories: [
+      { id: 'Colliers', name: 'Colliers', image: placeholderSubCat },
+      { id: 'Collier Stauff', name: 'Collier Stauff', image: placeholderSubCat },
+      { id: 'Joints', name: 'Joints', image: placeholderSubCat },
+      { id: 'Bouchons', name: 'Bouchons', image: placeholderSubCat },
+      { id: 'Brides', name: 'Brides', image: placeholderSubCat },
+      { id: 'Câble Sécurité', name: 'Câble Sécurité', image: placeholderSubCat },
+      { id: 'Gaines de Protections', name: 'Gaines de Protections', image: placeholderSubCat },
+    ]
+  }
+];
 
 export default function ProductPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  
+  // ÉTAPES
+  const [step, setStep] = useState<number>(1);
+  const [activeMainCat, setActiveMainCat] = useState<any>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [ChevronisVisible, ChevronsetIsVisible] = useState(false);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [priceRange, setPriceRange] = useState<string>('all');
+  
+  // RECHERCHE & TRI
+  const [globalSearch, setGlobalSearch] = useState<string>('');
   const [sortBy, setSortBy] = useState<string>('popular');
-  const [showFilters, setShowFilters] = useState<boolean>(false);
+  
+  // UI ET PANIER
   const [showCart, setShowCart] = useState<boolean>(false);
-  const { cart, addToCart, removeFromCart, updateQuantity, getTotalPrice, getCartCount } = useCart();
-
-  const categories = [
-    { id: 'all', name: 'Tous les produits', icon: <Package className="w-4 h-4" /> },
-    { id: 'Graisseurs', name: 'Graisseurs', icon: <Droplets className="w-4 h-4" /> },
-    { id: 'Pneumatique', name: 'Pneumatique', icon: <Wind className="w-4 h-4" /> },
-    { id: 'Raccords Résine', name: 'Raccords Résine', icon: <Link2 className="w-4 h-4" /> },
-    { id: 'Jupes à Sertir', name: 'Jupes à Sertir', icon: <Hexagon className="w-4 h-4" /> },
-    { id: 'Laiton', name: 'Laiton', icon: <Settings className="w-4 h-4" /> },
-    { id: 'Colliers', name: 'Colliers', icon: <Circle className="w-4 h-4" /> },
-    { id: 'Raccords BP', name: 'Raccords BP', icon: <Link2 className="w-4 h-4" /> },
-    { id: 'Coupleurs Air', name: 'Coupleurs Air', icon: <Plug className="w-4 h-4" /> },
-    { id: 'Tuyaux Basse Pression', name: 'Tuyaux Basse Pression', icon: <Activity className="w-4 h-4" /> },
-    { id: 'Joints', name: 'Joints', icon: <CircleDashed className="w-4 h-4" /> },
-    { id: 'Bouchons', name: 'Bouchons', icon: <Lock className="w-4 h-4" /> },
-    { id: 'Vannes', name: 'Vannes', icon: <ToggleLeft className="w-4 h-4" /> },
-    { id: 'Collier Stauff', name: 'Collier Stauff', icon: <Circle className="w-4 h-4" /> },
-    { id: 'Raccords à bagues N', name: 'Raccords à bagues N', icon: <Link2 className="w-4 h-4" /> },
-    { id: 'Raccords à bagues S', name: 'Raccords à bagues S', icon: <Link2 className="w-4 h-4" /> },
-    { id: 'Raccords à bagues Inox', name: 'Raccords à bagues Inox', icon: <Link2 className="w-4 h-4" /> },
-    { id: 'Raccords à bagues L', name: 'Raccords à bagues L', icon: <Link2 className="w-4 h-4" /> },
-    { id: 'Raccords à bagues LL', name: 'Raccords à bagues LL', icon: <Link2 className="w-4 h-4" /> },
-    { id: 'Jupes', name: 'Jupes', icon: <Hexagon className="w-4 h-4" /> },
-    { id: 'Embouts', name: 'Embouts', icon: <Plug className="w-4 h-4" /> },
-    { id: 'Inox à Sertir', name: 'Inox à Sertir', icon: <Hexagon className="w-4 h-4" /> },
-    { id: 'Câble Sécurité', name: 'Câble Sécurité', icon: <Shield className="w-4 h-4" /> },
-    { id: 'Gaines de Protections', name: 'Gaines de Protections', icon: <Layers className="w-4 h-4" /> },
-    { id: 'Coupleurs', name: 'Coupleurs', icon: <Plug className="w-4 h-4" /> },
-    { id: 'Brides', name: 'Brides', icon: <Disc className="w-4 h-4" /> },
-    { id: 'Fonte', name: 'Fonte', icon: <Hexagon className="w-4 h-4" /> },
-    { id: 'Robinets', name: 'Robinets', icon: <Droplets className="w-4 h-4" /> },
-    { id: 'Adaptateurs', name: 'Adaptateurs', icon: <ArrowLeftRight className="w-4 h-4" /> },
-    { id: 'Tuyaux', name: 'Tuyaux', icon: <Activity className="w-4 h-4" /> },
-    { id: 'Manomètres', name: 'Manomètres', icon: <Gauge className="w-4 h-4" /> }
-  ];
+  const [ChevronisVisible, ChevronsetIsVisible] = useState(false);
+  const { cart, addToCart, removeFromCart, updateQuantity, getTotalPrice } = useCart();
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -95,247 +104,298 @@ export default function ProductPage() {
   }, []);
 
   const filteredProducts = products.filter(product => {
-    const matchCategory = selectedCategory === 'all' || product.category === selectedCategory;
-    const matchSearch =
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.description.toLowerCase().includes(searchQuery.toLowerCase());
-
+    // Si on est à l'étape 3, on filtre par catégorie sélectionnée
+    const matchCategory = step === 3 ? product.category === selectedCategory : true;
+    const matchSearch = product.name.toLowerCase().includes(globalSearch.toLowerCase()) || 
+                        product.description.toLowerCase().includes(globalSearch.toLowerCase());
     return matchCategory && matchSearch;
   });
 
   const sortedProducts = [...filteredProducts].sort((a, b) => {
     if (sortBy === 'price-asc') return a.price - b.price;
     if (sortBy === 'price-desc') return b.price - a.price;
-    if (sortBy === 'rating') return b.rating - a.rating;
-    return 0;
+    return 0; // popular
   });
 
   useEffect(() => {
-    const toggleVisibility = () => {
-      if (window.scrollY > 300) {
-        ChevronsetIsVisible(true);
-      } else {
-        ChevronsetIsVisible(false);
-      }
-    };
-
+    const toggleVisibility = () => window.scrollY > 300 ? ChevronsetIsVisible(true) : ChevronsetIsVisible(false);
     window.addEventListener("scroll", toggleVisibility);
     return () => window.removeEventListener("scroll", toggleVisibility);
   }, []);
 
-  const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
+
+  const handleMainCategoryClick = (cat: any) => {
+    setActiveMainCat(cat);
+    setStep(2);
+    setGlobalSearch('');
   };
 
+  const handleSubCategoryClick = (subCatId: string) => {
+    setSelectedCategory(subCatId);
+    setStep(3);
+    setGlobalSearch('');
+  };
+
+  // Rendu de l'en-tête de la boutique (Espace Pro)
   return (
     <>
-      <DynamicHead 
-        title="ETN - Produits"
-        favicon="/images/favicon.png"
-      />
-      <main className="min-h-screen bg-white">
-        <section className="bg-blue-900 text-white py-16">
-          <div className="container mx-auto px-6">
-            <div className="max-w-3xl">
-              <h1 className="text-4xl lg:text-5xl font-bold mb-4">Nos Produits</h1>
-              <p className="text-lg text-white/80">
-                Découvrez notre catalogue complet de produits hydrauliques, pneumatiques et raccords industriels.
-                Plus de 13.000 références en stock pour répondre à tous vos besoins.
-              </p>
+      <DynamicHead title="ETN - Catalogue Professionnel" favicon="/images/favicon.png" />
+      
+      <main className="min-h-screen bg-[#F8FAFC]">
+        
+        {/* NOUVELLE NAVBAR SPÉCIFIQUE BOUTIQUE (Très pro, type B2B) */}
+        <header className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+          <div className="container mx-auto px-6 h-20 flex items-center justify-between gap-6">
+            
+            <div className="flex items-center space-x-2">
+                <span className="hidden sm:inline-block text-sm font-medium text-gray-400 border-l border-gray-300 pl-2 ml-2">Catalogue</span>
             </div>
-          </div>
-        </section>
 
-        <section className="bg-gray-50 py-6 sticky top-0 z-40 shadow-md">
-          <div className="container mx-auto px-6">
-            <div className="flex flex-col lg:flex-row gap-4 items-center">
-              <div className="relative flex-1 w-full">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Rechercher un produit..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
-                />
-              </div>
-
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-400 w-full lg:w-auto"
-              >
-                <option value="popular">Plus populaires</option>
-                <option value="price-asc">Prix croissant</option>
-                <option value="price-desc">Prix décroissant</option>
-                <option value="rating">Mieux notés</option>
-              </select>
-
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="lg:hidden bg-yellow-400 text-white px-6 py-3 rounded-lg font-semibold flex items-center space-x-2 w-full justify-center"
-              >
-                <Filter className="w-5 h-5" />
-                <span>Filtres</span>
-              </button>
-
-              <button
-                onClick={() => setShowCart(!showCart)}
-                className="bg-blue-900 text-white px-6 py-3 rounded-lg font-semibold flex items-center space-x-2 hover:bg-blue-800 transition-all relative"
-              >
-                <ShoppingCart className="w-5 h-5" />
-                <span className="hidden sm:inline">Panier</span>
-                {cart.length > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-yellow-400 text-blue-900 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">
-                    {cart.length}
-                  </span>
-                )}
-              </button>
+            {/* BARRE DE RECHERCHE CENTRALE */}
+            <div className="flex-1 max-w-2xl hidden md:block relative">
+                <div className="relative group">
+                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-blue-600 transition-colors" />
+                    <input 
+                        type="text" 
+                        placeholder="Rechercher une référence, un produit..." 
+                        value={globalSearch}
+                        onChange={(e) => {
+                            setGlobalSearch(e.target.value);
+                            if (e.target.value.length > 0 && step < 3) setStep(3); // Passe direct aux produits si on cherche
+                        }}
+                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
+                    />
+                </div>
             </div>
-          </div>
-        </section>
 
-        <section className="py-12">
-          <div className="container mx-auto px-6">
-            <div className="flex flex-col lg:flex-row gap-8">
-              <aside className={`lg:w-64 space-y-6 flex-shrink-0 ${showFilters ? 'block' : 'hidden lg:block'}`}>
-                <div className="bg-white rounded-lg shadow-lg p-5">
-                  <h3 className="text-lg font-bold text-blue-900 mb-4 px-2">Catégories</h3>
-                  
-                  <div className="space-y-1 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
-                    {categories.map(category => (
-                      <button
-                        key={category.id}
-                        onClick={() => setSelectedCategory(category.id)}
-                        className={`w-full flex items-center space-x-3 px-3 py-2 rounded-md transition-all text-sm ${
-                          selectedCategory === category.id
-                            ? 'bg-blue-50 text-blue-900 font-semibold border-l-4 border-yellow-400'
-                            : 'bg-transparent text-gray-600 hover:bg-gray-50 hover:text-blue-900'
-                        }`}
-                      >
-                        <span className={selectedCategory === category.id ? "text-yellow-500" : "text-gray-400"}>
-                          {category.icon}
+            {/* BOUTON PANIER ÉPURÉ */}
+            <button 
+                onClick={() => setShowCart(true)} 
+                className="relative p-2 text-gray-600 hover:text-blue-900 transition-colors flex items-center space-x-2"
+            >
+                <div className="relative">
+                    <ShoppingCart className="w-6 h-6" />
+                    {cart.length > 0 && (
+                        <span className="absolute -top-1.5 -right-1.5 bg-yellow-400 text-blue-900 text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border-2 border-white">
+                            {cart.length}
                         </span>
-                        <span className="text-left">{category.name}</span>
-                      </button>
-                    ))}
+                    )}
+                </div>
+                <span className="hidden sm:block text-sm font-semibold">Panier</span>
+            </button>
+          </div>
+          
+          {/* Barre de recherche mobile */}
+          <div className="md:hidden border-t border-gray-100 p-4 bg-gray-50">
+             <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input 
+                    type="text" 
+                    placeholder="Rechercher..." 
+                    value={globalSearch}
+                    onChange={(e) => {
+                        setGlobalSearch(e.target.value);
+                        if (e.target.value.length > 0 && step < 3) setStep(3);
+                    }}
+                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm"
+                />
+            </div>
+          </div>
+        </header>
+
+        <div className="container mx-auto px-6 py-8">
+            
+            {/* FIL D'ARIANE (Breadcrumb) - Très discret et lisible */}
+            <nav className="flex items-center space-x-2 text-sm text-gray-500 mb-8 overflow-x-auto whitespace-nowrap pb-2">
+                <button 
+                    onClick={() => { setStep(1); setGlobalSearch(''); }}
+                    className={`hover:text-blue-900 transition-colors ${step === 1 && !globalSearch ? 'text-blue-900 font-semibold' : ''}`}
+                >
+                    Accueil Catalogue
+                </button>
+                
+                {step >= 2 && !globalSearch && (
+                    <>
+                        <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                        <button 
+                            onClick={() => setStep(2)}
+                            className={`hover:text-blue-900 transition-colors ${step === 2 ? 'text-blue-900 font-semibold' : ''}`}
+                        >
+                            {activeMainCat?.name}
+                        </button>
+                    </>
+                )}
+
+                {step >= 3 && !globalSearch && (
+                    <>
+                        <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                        <span className="text-blue-900 font-semibold">{selectedCategory}</span>
+                    </>
+                )}
+
+                {globalSearch && (
+                    <>
+                        <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                        <span className="text-blue-900 font-semibold">Résultats pour "{globalSearch}"</span>
+                    </>
+                )}
+            </nav>
+
+            {/* ÉTAPE 1 : GRANDES FAMILLES */}
+            {step === 1 && !globalSearch && (
+              <div className="animate-fade-in">
+                <div className="mb-8">
+                    <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Nos Familles de Produits</h1>
+                    <p className="text-gray-500 mt-2">Sélectionnez une catégorie pour affiner votre recherche.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {categoryTree.map((cat) => (
+                    <div 
+                      key={cat.id}
+                      onClick={() => handleMainCategoryClick(cat)}
+                      className="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-blue-900 hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col"
+                    >
+                      <div className="h-48 overflow-hidden bg-gray-100">
+                        <img 
+                            src={cat.image} 
+                            alt={cat.name} 
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                        />
+                      </div>
+                      <div className="p-5">
+                        <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-900 transition-colors">{cat.name}</h3>
+                        <p className="text-gray-500 text-sm mt-1">{cat.subCategories.length} sous-catégories</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+{/* ÉTAPE 2 : SOUS-CATÉGORIES */}
+            {step === 2 && !globalSearch && activeMainCat && (
+              <div className="animate-fade-in">
+                <div className="mb-8 flex gap-4"> {/* J'ai ajouté un flex pour aligner le bouton retour et le texte */}
+                    <button onClick={() => setStep(1)} className="p-2 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 text-gray-600 transition-colors h-fit mt-1">
+                        <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">{activeMainCat.name}</h1>
+                        <p className="text-gray-500 mt-1">Précisez votre besoin.</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {activeMainCat.subCategories.map((subCat: any) => (
+                    <div 
+                      key={subCat.id}
+                      onClick={() => handleSubCategoryClick(subCat.id)}
+                      className="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-blue-900 hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col"
+                    >
+                      {/* Conteneur de l'image (identique à l'étape 1) */}
+                      <div className="h-48 overflow-hidden bg-gray-100">
+                        <img 
+                          src={subCat.image} 
+                          alt={subCat.name} 
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                        />
+                      </div>
+                      
+                      {/* Conteneur du texte (identique à l'étape 1) */}
+                      <div className="p-5">
+                        <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-900 transition-colors">{subCat.name}</h3>
+                        {/* Texte de remplacement pour garder la même hauteur de carte */}
+                        <p className="text-gray-500 text-sm mt-1">Voir les articles</p> 
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ÉTAPE 3 : PRODUITS (OU RÉSULTATS DE RECHERCHE) */}
+            {(step === 3 || globalSearch) && (
+              <div className="animate-fade-in">
+                
+                <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 pb-4 border-b border-gray-200 gap-4">
+                  <div>
+                    {globalSearch ? (
+                        <h1 className="text-2xl font-bold text-gray-900">Recherche : "{globalSearch}"</h1>
+                    ) : (
+                        <h1 className="text-2xl font-bold text-gray-900">{selectedCategory}</h1>
+                    )}
+                    <p className="text-sm text-gray-500 mt-1">{sortedProducts.length} référence(s) trouvée(s)</p>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3">
+                    <SlidersHorizontal className="w-5 h-5 text-gray-400" />
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="py-2 pl-3 pr-8 border border-gray-200 rounded-lg text-sm bg-white text-gray-700 outline-none focus:border-blue-500"
+                    >
+                      <option value="popular">Trier par : Pertinence</option>
+                      <option value="price-asc">Prix : Croissant</option>
+                      <option value="price-desc">Prix : Décroissant</option>
+                    </select>
                   </div>
                 </div>
 
-                <div className="bg-blue-900 text-white rounded-lg p-6">
-                  <h3 className="text-lg font-bold mb-2">Besoin d&apos;aide ?</h3>
-                  <p className="text-sm text-white/80 mb-4">
-                    Nos experts vous conseillent
-                  </p>
-                  <button className="bg-yellow-400 text-blue-900 w-full py-2 rounded-lg font-semibold hover:bg-yellow-500 transition-all">
-                    Contactez-nous
-                  </button>
-                </div>
-              </aside>
-
-              <div className="flex-1 min-w-0">
-                <div className="mb-6 flex justify-between items-center">
-                  <p className="text-gray-600">
-                    <span className="font-semibold text-blue-900">{sortedProducts.length}</span> produits trouvés
-                  </p>
-                </div>
-
-                <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {isLoading ? (
-                    <div className="col-span-full flex justify-center py-12">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-900"></div>
-                    </div>
+                     <div className="col-span-full flex justify-center py-20">
+                       <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-900"></div>
+                     </div>
                   ) : sortedProducts.length === 0 ? (
-                    <div className="col-span-full text-center py-12 text-gray-500">
-                      Aucun produit ne correspond à votre recherche.
+                    <div className="col-span-full text-center py-16 bg-white rounded-xl border border-dashed border-gray-300">
+                      <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                      <p className="text-lg text-gray-600 font-medium">Aucun produit ne correspond à vos critères.</p>
+                      <button onClick={() => { setGlobalSearch(''); setStep(1); }} className="mt-4 text-blue-600 hover:underline font-medium text-sm">
+                          Retourner au catalogue
+                      </button>
                     </div>
                   ) : (
                     sortedProducts.map(product => (
-                      <div
-                        key={product.id}
-                        className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-102 flex flex-col"
-                      >
-                        <Link href={`/produits/${product.slug}`} className="flex-1 block cursor-pointer">
-                          <div className="relative bg-gray-200 h-48 flex items-center justify-center">
-                            <Package className="w-16 h-16 text-gray-400" />
+                      <div key={product.id} className="bg-white rounded-xl border border-gray-200 hover:shadow-lg transition-all duration-200 flex flex-col overflow-hidden group">
+                        
+                        <Link href={`/produits/${product.slug}`} className="block relative h-48 bg-white p-4 border-b border-gray-100 flex items-center justify-center">
+                            <img 
+                                src={product.image || placeholderProduct} 
+                                alt={product.name} 
+                                className="max-h-full object-contain group-hover:scale-105 transition-transform duration-300" 
+                            />
                             {product.badge && (
-                              <div className="absolute top-3 left-3 bg-yellow-400 text-blue-900 px-3 py-1 rounded-full text-xs font-bold">
-                                {product.badge}
-                              </div>
-                            )}
-                            {!product.inStock && (
-                              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                                <span className="bg-red-500 text-white px-4 py-2 rounded-lg font-bold">
-                                  Rupture de stock
+                                <span className="absolute top-3 left-3 bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wide border border-blue-200">
+                                    {product.badge}
                                 </span>
-                              </div>
                             )}
-                          </div>
-
-                          <div className="p-6 pb-2">
-                            <h3 className="text-lg font-bold text-blue-900 mb-2 hover:underline line-clamp-1">{product.name}</h3>
-                            <p className="text-sm text-gray-600 mb-3 line-clamp-2">{product.description}</p>
-
-                            <div className="mb-4 space-y-1">
-                              {product.specs && product.specs.slice(0, 2).map((spec, index) => (
-                                <p key={index} className="text-xs text-gray-500 flex items-center">
-                                  <CheckCircle className="w-3 h-3 text-yellow-400 mr-1 flex-shrink-0" />
-                                  <span className="line-clamp-1">{spec}</span>
-                                </p>
-                              ))}
-                            </div>
-
-                            <div className="flex items-center mb-4">
-                              <div className="flex items-center">
-                                {[...Array(5)].map((_, i) => (
-                                  <Star
-                                    key={i}
-                                    className={`w-4 h-4 ${
-                                      i < Math.floor(product.rating || 0)
-                                        ? 'text-yellow-400 fill-yellow-400'
-                                        : 'text-gray-300'
-                                    }`}
-                                  />
-                                ))}
-                              </div>
-                              <span className="ml-2 text-sm text-gray-600">
-                                ({product.reviews})
-                              </span>
-                            </div>
-                          </div>
                         </Link>
 
-                        <div className="p-6 pt-4 mt-auto border-t border-gray-100 bg-gray-50/50">
-                          <div className="flex items-center justify-between">
+                        <div className="p-5 flex flex-col flex-1">
+                          <Link href={`/produits/${product.slug}`} className="flex-1">
+                            <h3 className="font-bold text-gray-900 text-sm mb-1 line-clamp-2 hover:text-blue-600">{product.name}</h3>
+                            <p className="text-xs text-gray-500 mb-4 line-clamp-2">{product.description}</p>
+                          </Link>
+                          
+                          <div className="mt-auto flex items-end justify-between pt-4">
                             <div>
-                              <div className="flex items-center space-x-2">
-                                <span className="text-2xl font-bold text-blue-900">
-                                  {product.price.toFixed(2)}€
-                                </span>
-                                {product.originalPrice && (
-                                  <span className="text-sm text-gray-400 line-through">
-                                    {product.originalPrice.toFixed(2)}€
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-xs text-gray-500">HT</p>
+                                <span className="text-xs text-gray-400 block mb-0.5">Prix pro HT</span>
+                                <span className="text-xl font-bold text-gray-900">{product.price.toFixed(2)}€</span>
                             </div>
+                            
                             <button
-                              onClick={(e) => {
-                                e.preventDefault(); 
-                                addToCart(product);
-                              }}
+                              onClick={(e) => { e.preventDefault(); addToCart(product); }}
                               disabled={!product.inStock}
-                              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                                product.inStock
-                                  ? 'bg-yellow-400 text-white hover:bg-yellow-500 shadow-sm'
-                                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                              className={`p-2.5 rounded-lg transition-colors flex items-center justify-center ${
+                                product.inStock 
+                                ? 'bg-gray-900 text-white hover:bg-blue-600' 
+                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                               }`}
+                              title={product.inStock ? "Ajouter au panier" : "Rupture de stock"}
                             >
-                              {product.inStock ? 'Ajouter' : 'Indisponible'}
+                              <ShoppingCart className="w-5 h-5" />
                             </button>
                           </div>
                         </div>
@@ -344,111 +404,75 @@ export default function ProductPage() {
                   )}
                 </div>
               </div>
-            </div>
-          </div>
-        </section>
+            )}
+        </div>
 
+        {/* PANIER SLIDE-OVER MODERNE */}
         {showCart && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex justify-end">
-            <div className="bg-white w-full max-w-md h-full overflow-y-auto">
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-blue-900">Votre Panier</h2>
-                  <button
-                    onClick={() => setShowCart(false)}
-                    className="text-gray-500 hover:text-gray-700"
-                  >
-                    <X className="w-6 h-6" />
+          <div className="fixed inset-0 z-50 flex justify-end">
+            <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity" onClick={() => setShowCart(false)}></div>
+            <div className="relative w-full max-w-md h-full bg-white shadow-2xl flex flex-col animate-slide-in-right">
+                
+                <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-white">
+                  <h2 className="text-xl font-bold text-gray-900 flex items-center">
+                      Mon Panier 
+                      <span className="ml-3 bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-sm">{cart.length}</span>
+                  </h2>
+                  <button onClick={() => setShowCart(false)} className="text-gray-400 hover:text-gray-800 p-2 rounded-full hover:bg-gray-100 transition-colors">
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
-
-                {cart.length === 0 ? (
-                  <div className="text-center py-12">
-                    <ShoppingCart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-600">Votre panier est vide</p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="space-y-4 mb-6">
-                      {cart.map(item => (
-                        <div key={item.id} className="flex items-center space-x-4 border-b pb-4">
-                          <div className="w-16 h-16 bg-gray-200 rounded flex items-center justify-center flex-shrink-0">
-                            <Package className="w-8 h-8 text-gray-400" />
-                          </div>
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-blue-900 text-sm">{item.name}</h3>
-                            <p className="text-yellow-400 font-bold">{item.price.toFixed(2)}€</p>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                              className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center hover:bg-gray-300"
-                            >
-                              -
-                            </button>
-                            <span className="w-8 text-center font-semibold">{item.quantity}</span>
-                            <button
-                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                              className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center hover:bg-gray-300"
-                            >
-                              +
-                            </button>
-                          </div>
-                          <button
-                            onClick={() => removeFromCart(item.id)}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            <X className="w-5 h-5" />
-                          </button>
+                
+                <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+                    {cart.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-gray-500">
+                            <ShoppingCart className="w-16 h-16 text-gray-300 mb-4" />
+                            <p>Votre panier est vide.</p>
                         </div>
-                      ))}
-                    </div>
+                    ) : (
+                        <div className="space-y-4">
+                             {/* ... Ici tu gardes ton mapping du panier existant (item.name, updateQuantity, etc.) ... */}
+                             {cart.map(item => (
+                                <div key={item.id} className="bg-white p-4 rounded-xl border border-gray-200 flex items-center gap-4">
+                                    <div className="w-16 h-16 bg-gray-50 rounded-lg flex items-center justify-center border border-gray-100 p-1 flex-shrink-0">
+                                        <img src={item.image || placeholderProduct} alt={item.name} className="max-h-full object-contain" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="text-sm font-semibold text-gray-900 truncate">{item.name}</h4>
+                                        <div className="text-sm font-bold text-gray-900 mt-1">{item.price.toFixed(2)}€</div>
+                                        <div className="flex items-center space-x-3 mt-2">
+                                            <div className="flex items-center border border-gray-200 rounded-md">
+                                                <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="px-2 py-1 text-gray-500 hover:bg-gray-50">-</button>
+                                                <span className="px-2 text-xs font-medium min-w-[20px] text-center">{item.quantity}</span>
+                                                <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="px-2 py-1 text-gray-500 hover:bg-gray-50">+</button>
+                                            </div>
+                                            <button onClick={() => removeFromCart(item.id)} className="text-xs text-red-500 hover:underline">Supprimer</button>
+                                        </div>
+                                    </div>
+                                </div>
+                             ))}
+                        </div>
+                    )}
+                </div>
 
-                    <div className="border-t pt-4 mb-6">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-gray-600">Sous-total (HT)</span>
-                        <span className="font-semibold text-blue-900">{getTotalPrice().toFixed(2)}€</span>
-                      </div>
-                      <div className="flex justify-between items-center mb-4">
-                        <span className="text-gray-600">TVA (20%)</span>
-                        <span className="font-semibold text-blue-900">{(getTotalPrice() * 0.2).toFixed(2)}€</span>
-                      </div>
-                      <div className="flex justify-between items-center text-xl font-bold">
-                        <span className="text-blue-900">Total (TTC)</span>
-                        <span className="text-yellow-400">{(getTotalPrice() * 1.2).toFixed(2)}€</span>
-                      </div>
+                {cart.length > 0 && (
+                    <div className="p-6 bg-white border-t border-gray-100">
+                        <div className="flex justify-between items-center mb-4">
+                            <span className="text-gray-500">Total HT</span>
+                            <span className="text-2xl font-bold text-gray-900">{getTotalPrice().toFixed(2)}€</span>
+                        </div>
+                        <button onClick={() => setShowCart(false)} className="w-full bg-blue-600 text-white py-3.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm">
+                            Demander un devis
+                        </button>
                     </div>
-
-                    <button className="w-full bg-blue-900 text-white py-4 rounded-lg font-semibold hover:bg-blue-800 transition-all mb-3">
-                      Demander un devis
-                    </button>
-                    <button 
-                      onClick={() => setShowCart(false)}
-                      className="w-full bg-yellow-400 text-white py-4 rounded-lg font-semibold hover:bg-yellow-500 transition-all"
-                    >
-                      Continuer mes achats
-                    </button>
-
-                    <div className="mt-6 bg-blue-50 rounded-lg p-4 flex items-start space-x-3">
-                      <Truck className="w-5 h-5 text-blue-900 flex-shrink-0 mt-1" />
-                      <div>
-                        <p className="text-sm font-semibold text-blue-900">Livraison rapide</p>
-                        <p className="text-xs text-gray-600">Livraison sous 48-72h en région Nord</p>
-                      </div>
-                    </div>
-                  </>
                 )}
-              </div>
             </div>
           </div>
         )}
       </main>
       
       {ChevronisVisible && (
-        <button
-          onClick={scrollToTop}
-          className="fixed bottom-6 right-6 p-3 rounded-full bg-blue-900 text-white shadow-lg hover:bg-blue-800 transition-all z-50"
-        >
+        <button onClick={scrollToTop} className="fixed bottom-8 right-8 p-3 rounded-full bg-white text-gray-600 shadow-lg border border-gray-200 hover:text-blue-600 hover:border-blue-600 transition-all z-50">
           <ChevronUpCircle className="w-6 h-6" />
         </button>
       )}

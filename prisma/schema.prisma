@@ -6,18 +6,25 @@ datasource db {
   provider = "sqlite"
 }
 
-model Product {
-  id            Int      @id @default(autoincrement())
-  slug          String   @unique
-  name          String
-  category      String
-  price         Float
-  originalPrice Float?
-  image         String
-  rating        Float    @default(0)
-  reviews       Int      @default(0)
-  inStock       Boolean  @default(true)
-  badge         String?
-  description   String
-  specs         String   @default("[]") 
+model Categorie {
+  id              String         @id @default(cuid())
+  nom             String
+  slug            String         @unique
+  sousCategories  SousCategorie[]
+}
+
+model SousCategorie {
+  id          String      @id @default(cuid())
+  nom         String
+  slug        String      @unique
+  categorieId String
+  categorie   Categorie   @relation(fields: [categorieId], references: [id])
+  produits    Produit[]
+}
+
+model Produit {
+  id              String         @id @default(cuid())
+  nom             String
+  sousCategorieId String
+  sousCategorie   SousCategorie  @relation(fields: [sousCategorieId], references: [id])
 }

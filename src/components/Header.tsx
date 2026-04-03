@@ -85,7 +85,7 @@ export default function Header() {
               Accueil
             </Link>
             <Link
-              href="/boutique"
+              href="/produits"
               className="block text-gray-700 hover:text-blue-700"
               onClick={() => setIsOpen(false)}
             >

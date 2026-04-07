@@ -4,35 +4,71 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Search, ShoppingCart, ArrowLeft, ChevronRight, SlidersHorizontal, Package, X, ChevronUpCircle } from "lucide-react";
 import DynamicHead from "@/components/DynamicHead";
+import { useCart } from "@/context/CartContext";
+
+interface SubCategory {
+  id: string;
+  name: string;
+  image: string;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  image: string;
+  subCategories: SubCategory[];
+}
+
+interface CatalogProduct {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  price: number;
+  inStock: boolean;
+  badge?: string;
+  image?: string;
+  mainCategory: string;
+  category: string;
+}
 
 export default function CataloguePage() {
   // --- ÉTATS ---
   const [step, setStep] = useState(1);
   const [globalSearch, setGlobalSearch] = useState("");
-  const [activeMainCat, setActiveMainCat] = useState<any>(null);
+  // On remplace "any" par "Category | null"
+  const [activeMainCat, setActiveMainCat] = useState<Category | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [sortBy, setSortBy] = useState("popular");
   
-  // États pour les produits venant d'Excel
-  const [allProducts, setAllProducts] = useState<any[]>([]);
+  // On remplace "any[]" par "CatalogProduct[]"
+  const [allProducts, setAllProducts] = useState<CatalogProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // États pour le panier (à relier à ton CartContext si besoin)
-  const [cart, setCart] = useState<any[]>([]);
+  // 2. ON UTILISE LE CERVEAU GLOBAL DU PANIER AU LIEU DU PANIER LOCAL
+  const { cart, addToCart, updateQuantity, removeFromCart, cartTotal } = useCart();
+  
   const [showCart, setShowCart] = useState(false);
   const [ChevronisVisible, setChevronisVisible] = useState(false);
   const placeholderProduct = "/images/placeholder.webp";
 
-  // Arbre de catégories en dur (à adapter selon tes besoins)
-  const categoryTree = [
-    { id: "composants", name: "Composants Hydrauliques", image: "/images/flexibles.jpg", subCategories: [{ id: "pompes", name: "Pompes", image: "/images/pompe.jpg" }, { id: "flexibles", name: "Flexibles", image: "/images/flexibles.jpg" }] },
-    // ... ajoute tes autres grandes familles ici
+  // Arbre de catégories en dur
+  const categoryTree: Category[] = [
+    { 
+      id: "composants", 
+      name: "Composants Hydrauliques", 
+      image: "/images/flexibles.jpg", 
+      subCategories: [
+        { id: "pompes", name: "Pompes", image: "/images/pompe.jpg" }, 
+        { id: "flexibles", name: "Flexibles", image: "/images/flexibles.jpg" }
+      ] 
+    },
     { 
       id: "connectique", 
       name: "Connectique", 
-      image: "/images/raccord.jpg", // Mets une image de raccord que tu as dans ton dossier public/images
+      image: "/images/raccord.jpg",
       subCategories: [
-        { id: "raccords", name: "Raccords", image: "/images/raccord.jpg" } // L'id DOIT correspondre à l'Excel
+        { id: "raccords", name: "Raccords", image: "/images/raccord.jpg" }
       ] 
     }
   ];
@@ -41,7 +77,7 @@ export default function CataloguePage() {
   useEffect(() => {
     async function fetchProduits() {
       try {
-        const res = await fetch('/api/produits');
+        const res = await fetch('/api/produits?t=' + new Date().getTime(), { cache: 'no-store' });
         const data = await res.json();
         setAllProducts(data);
       } catch (error) {
@@ -54,8 +90,7 @@ export default function CataloguePage() {
   }, []);
 
   // --- LOGIQUE DE FILTRAGE ET TRI ---
-  // On filtre d'abord selon la recherche globale OU la sous-catégorie sélectionnée
-let filteredProducts = allProducts;
+  let filteredProducts = allProducts;
   
   if (globalSearch) {
     filteredProducts = allProducts.filter(p => 
@@ -63,7 +98,6 @@ let filteredProducts = allProducts;
       (p.description || "").toLowerCase().includes(globalSearch.trim().toLowerCase())
     );
   } else if (selectedCategory) {
-    // 👇 CHANGEMENT ICI : On utilise "p.category" au lieu de "p.subCategory"
     filteredProducts = allProducts.filter(p => 
       (p.category || "").trim().toLowerCase() === selectedCategory.trim().toLowerCase()
     );
@@ -76,7 +110,8 @@ let filteredProducts = allProducts;
   });
 
   // --- ACTIONS ---
-  const handleMainCategoryClick = (cat: any) => {
+  // On remplace "any" par "Category"
+  const handleMainCategoryClick = (cat: Category) => {
     setActiveMainCat(cat);
     setStep(2);
   };
@@ -86,27 +121,8 @@ let filteredProducts = allProducts;
     setStep(3);
   };
 
-  const addToCart = (product: any) => {
-    setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
-      if (existing) return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
-      return [...prev, { ...product, quantity: 1 }];
-    });
-  };
-
-  const updateQuantity = (id: string, qty: number) => {
-    if (qty < 1) return removeFromCart(id);
-    setCart(prev => prev.map(item => item.id === id ? { ...item, quantity: qty } : item));
-  };
-
-  const removeFromCart = (id: string) => {
-    setCart(prev => prev.filter(item => item.id !== id));
-  };
-
-  const getTotalPrice = () => cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
-  // Gérer l'affichage du bouton de retour en haut
   useEffect(() => {
     const toggleVisibility = () => window.scrollY > 300 ? setChevronisVisible(true) : setChevronisVisible(false);
     window.addEventListener("scroll", toggleVisibility);
@@ -119,7 +135,7 @@ let filteredProducts = allProducts;
       
       <main className="min-h-screen bg-[#F8FAFC]">
         
-        {/* NOUVELLE NAVBAR SPÉCIFIQUE BOUTIQUE (Très pro, type B2B) */}
+        {/* NAVBAR */}
         <header className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
           <div className="container mx-auto px-6 h-20 flex items-center justify-between gap-6">
             
@@ -127,7 +143,6 @@ let filteredProducts = allProducts;
                 <span className="hidden sm:inline-block text-sm font-medium text-gray-400 border-l border-gray-300 pl-2 ml-2">Catalogue</span>
             </div>
 
-            {/* BARRE DE RECHERCHE CENTRALE */}
             <div className="flex-1 max-w-2xl hidden md:block relative">
                 <div className="relative group">
                     <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-blue-600 transition-colors" />
@@ -137,14 +152,13 @@ let filteredProducts = allProducts;
                         value={globalSearch}
                         onChange={(e) => {
                             setGlobalSearch(e.target.value);
-                            if (e.target.value.length > 0 && step < 3) setStep(3); // Passe direct aux produits si on cherche
+                            if (e.target.value.length > 0 && step < 3) setStep(3);
                         }}
                         className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
                     />
                 </div>
             </div>
 
-            {/* BOUTON PANIER ÉPURÉ */}
             <button 
                 onClick={() => setShowCart(true)} 
                 className="relative p-2 text-gray-600 hover:text-blue-900 transition-colors flex items-center space-x-2"
@@ -161,7 +175,6 @@ let filteredProducts = allProducts;
             </button>
           </div>
           
-          {/* Barre de recherche mobile */}
           <div className="md:hidden border-t border-gray-100 p-4 bg-gray-50">
              <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -181,7 +194,6 @@ let filteredProducts = allProducts;
 
         <div className="container mx-auto px-6 py-8">
             
-            {/* FIL D'ARIANE (Breadcrumb) - Très discret et lisible */}
             <nav className="flex items-center space-x-2 text-sm text-gray-500 mb-8 overflow-x-auto whitespace-nowrap pb-2">
                 <button 
                     onClick={() => { setStep(1); setGlobalSearch(''); }}
@@ -217,7 +229,6 @@ let filteredProducts = allProducts;
                 )}
             </nav>
 
-            {/* ÉTAPE 1 : GRANDES FAMILLES */}
             {step === 1 && !globalSearch && (
               <div className="animate-fade-in">
                 <div className="mb-8">
@@ -249,7 +260,6 @@ let filteredProducts = allProducts;
               </div>
             )}
 
-            {/* ÉTAPE 2 : SOUS-CATÉGORIES */}
             {step === 2 && !globalSearch && activeMainCat && (
               <div className="animate-fade-in">
                 <div className="mb-8 flex gap-4"> 
@@ -263,7 +273,8 @@ let filteredProducts = allProducts;
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {activeMainCat.subCategories.map((subCat: any) => (
+                  {/* On remplace "any" par "SubCategory" ici aussi */}
+                  {activeMainCat.subCategories.map((subCat: SubCategory) => (
                     <div 
                       key={subCat.id}
                       onClick={() => handleSubCategoryClick(subCat.id)}
@@ -286,7 +297,7 @@ let filteredProducts = allProducts;
               </div>
             )}
 
-            {/* ÉTAPE 3 : PRODUITS (OU RÉSULTATS DE RECHERCHE) */}
+            {/* ÉTAPE 3 : PRODUITS */}
             {(step === 3 || globalSearch) && (
               <div className="animate-fade-in">
                 
@@ -357,7 +368,17 @@ let filteredProducts = allProducts;
                             </div>
                             
                             <button
-                              onClick={(e) => { e.preventDefault(); addToCart(product); }}
+                              onClick={(e) => { 
+                                e.preventDefault(); 
+                                // On utilise la fonction addToCart du contexte global !
+                                addToCart({
+                                  id: product.id,
+                                  name: product.name,
+                                  price: product.price,
+                                  image: product.image,
+                                  inStock: product.inStock
+                                }, 1); 
+                              }}
                               disabled={!product.inStock}
                               className={`p-2.5 rounded-lg transition-colors flex items-center justify-center ${
                                 product.inStock 
@@ -378,7 +399,7 @@ let filteredProducts = allProducts;
             )}
         </div>
 
-        {/* PANIER SLIDE-OVER MODERNE */}
+        {/* PANIER SLIDE-OVER */}
         {showCart && (
           <div className="fixed inset-0 z-50 flex justify-end">
             <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity" onClick={() => setShowCart(false)}></div>
@@ -429,7 +450,7 @@ let filteredProducts = allProducts;
                     <div className="p-6 bg-white border-t border-gray-100">
                         <div className="flex justify-between items-center mb-4">
                             <span className="text-gray-500">Total HT</span>
-                            <span className="text-2xl font-bold text-gray-900">{getTotalPrice().toFixed(2)}€</span>
+                            <span className="text-2xl font-bold text-gray-900">{cartTotal.toFixed(2)}€</span>
                         </div>
                         <button onClick={() => setShowCart(false)} className="w-full bg-blue-600 text-white py-3.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm">
                             Demander un devis

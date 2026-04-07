@@ -1,143 +1,118 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { ChevronUpCircle } from 'lucide-react';
-import DynamicHead from '../../components/DynamicHead';
-import { Product, useCart } from '../../context/CartContext';
-import {
-  Search, ShoppingCart, Package, Star, X,
-  ChevronRight, ArrowLeft, SlidersHorizontal
-} from 'lucide-react';
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { Search, ShoppingCart, ArrowLeft, ChevronRight, SlidersHorizontal, Package, X, ChevronUpCircle } from "lucide-react";
+import DynamicHead from "@/components/DynamicHead";
 
-// PLACEHOLDERS IMAGES (À remplacer par tes vraies images)
-const placeholderMainCat = 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=800'; // Image industrielle générique
-const placeholderSubCat = 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&q=80&w=400';
-const placeholderProduct = 'https://images.unsplash.com/photo-1530825894095-9c1851214068?auto=format&fit=crop&q=80&w=400';
-
-// HIÉRARCHIE DES CATÉGORIES
-const categoryTree = [
-  {
-    id: 'fluides', name: 'Gestion des Fluides', image: placeholderMainCat,
-    subCategories: [
-      { id: 'Graisseurs', name: 'Graisseurs', image: placeholderSubCat },
-      { id: 'Vannes', name: 'Vannes', image: placeholderSubCat },
-      { id: 'Robinets', name: 'Robinets', image: placeholderSubCat },
-      { id: 'Manomètres', name: 'Manomètres', image: placeholderSubCat },
-    ]
-  },
-  {
-    id: 'pneumatique', name: 'Pneumatique & Air', image: placeholderMainCat,
-    subCategories: [
-      { id: 'Pneumatique', name: 'Pneumatique', image: placeholderSubCat },
-      { id: 'Coupleurs Air', name: 'Coupleurs Air', image: placeholderSubCat },
-      { id: 'Tuyaux Basse Pression', name: 'Tuyaux Basse Pression', image: placeholderSubCat },
-    ]
-  },
-  {
-    id: 'raccords', name: 'Raccords & Connectique', image: placeholderMainCat,
-    subCategories: [
-      { id: 'Raccords Résine', name: 'Raccords Résine', image: placeholderSubCat },
-      { id: 'Raccords BP', name: 'Raccords BP', image: placeholderSubCat },
-      { id: 'Laiton', name: 'Laiton', image: placeholderSubCat },
-      { id: 'Raccords à bagues N', name: 'Raccords à bagues N', image: placeholderSubCat },
-      { id: 'Raccords à bagues S', name: 'Raccords à bagues S', image: placeholderSubCat },
-      { id: 'Raccords à bagues Inox', name: 'Raccords à bagues Inox', image: placeholderSubCat },
-      { id: 'Adaptateurs', name: 'Adaptateurs', image: placeholderSubCat },
-    ]
-  },
-  {
-    id: 'sertissage', name: 'Sertissage & Flexibles', image: placeholderMainCat,
-    subCategories: [
-      { id: 'Jupes à Sertir', name: 'Jupes à Sertir', image: placeholderSubCat },
-      { id: 'Jupes', name: 'Jupes', image: placeholderSubCat },
-      { id: 'Embouts', name: 'Embouts', image: placeholderSubCat },
-      { id: 'Inox à Sertir', name: 'Inox à Sertir', image: placeholderSubCat },
-      { id: 'Tuyaux', name: 'Tuyaux', image: placeholderSubCat },
-    ]
-  },
-  {
-    id: 'accessoires', name: 'Accessoires & Fixations', image: placeholderMainCat,
-    subCategories: [
-      { id: 'Colliers', name: 'Colliers', image: placeholderSubCat },
-      { id: 'Collier Stauff', name: 'Collier Stauff', image: placeholderSubCat },
-      { id: 'Joints', name: 'Joints', image: placeholderSubCat },
-      { id: 'Bouchons', name: 'Bouchons', image: placeholderSubCat },
-      { id: 'Brides', name: 'Brides', image: placeholderSubCat },
-      { id: 'Câble Sécurité', name: 'Câble Sécurité', image: placeholderSubCat },
-      { id: 'Gaines de Protections', name: 'Gaines de Protections', image: placeholderSubCat },
-    ]
-  }
-];
-
-export default function ProductPage() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  
-  // ÉTAPES
-  const [step, setStep] = useState<number>(1);
+export default function CataloguePage() {
+  // --- ÉTATS ---
+  const [step, setStep] = useState(1);
+  const [globalSearch, setGlobalSearch] = useState("");
   const [activeMainCat, setActiveMainCat] = useState<any>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [sortBy, setSortBy] = useState("popular");
   
-  // RECHERCHE & TRI
-  const [globalSearch, setGlobalSearch] = useState<string>('');
-  const [sortBy, setSortBy] = useState<string>('popular');
-  
-  // UI ET PANIER
-  const [showCart, setShowCart] = useState<boolean>(false);
-  const [ChevronisVisible, ChevronsetIsVisible] = useState(false);
-  const { cart, addToCart, removeFromCart, updateQuantity, getTotalPrice } = useCart();
+  // États pour les produits venant d'Excel
+  const [allProducts, setAllProducts] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // États pour le panier (à relier à ton CartContext si besoin)
+  const [cart, setCart] = useState<any[]>([]);
+  const [showCart, setShowCart] = useState(false);
+  const [ChevronisVisible, setChevronisVisible] = useState(false);
+  const placeholderProduct = "/images/placeholder.webp";
+
+  // Arbre de catégories en dur (à adapter selon tes besoins)
+  const categoryTree = [
+    { id: "composants", name: "Composants Hydrauliques", image: "/images/flexibles.jpg", subCategories: [{ id: "pompes", name: "Pompes", image: "/images/pompe.jpg" }, { id: "flexibles", name: "Flexibles", image: "/images/flexibles.jpg" }] },
+    // ... ajoute tes autres grandes familles ici
+    { 
+      id: "connectique", 
+      name: "Connectique", 
+      image: "/images/raccord.jpg", // Mets une image de raccord que tu as dans ton dossier public/images
+      subCategories: [
+        { id: "raccords", name: "Raccords", image: "/images/raccord.jpg" } // L'id DOIT correspondre à l'Excel
+      ] 
+    }
+  ];
+
+  // --- RÉCUPÉRATION DES PRODUITS EXCEL ---
   useEffect(() => {
-    const fetchProducts = async () => {
+    async function fetchProduits() {
       try {
         const res = await fetch('/api/produits');
         const data = await res.json();
-        setProducts(data);
+        setAllProducts(data);
       } catch (error) {
-        console.error("Erreur lors du chargement des produits", error);
+        console.error("Erreur chargement produits:", error);
       } finally {
         setIsLoading(false);
       }
-    };
-    fetchProducts();
+    }
+    fetchProduits();
   }, []);
 
-  const filteredProducts = products.filter(product => {
-    // Si on est à l'étape 3, on filtre par catégorie sélectionnée
-    const matchCategory = step === 3 ? product.category === selectedCategory : true;
-    const matchSearch = product.name.toLowerCase().includes(globalSearch.toLowerCase()) || 
-                        product.description.toLowerCase().includes(globalSearch.toLowerCase());
-    return matchCategory && matchSearch;
-  });
+  // --- LOGIQUE DE FILTRAGE ET TRI ---
+  // On filtre d'abord selon la recherche globale OU la sous-catégorie sélectionnée
+let filteredProducts = allProducts;
+  
+  if (globalSearch) {
+    filteredProducts = allProducts.filter(p => 
+      (p.name || "").toLowerCase().includes(globalSearch.trim().toLowerCase()) ||
+      (p.description || "").toLowerCase().includes(globalSearch.trim().toLowerCase())
+    );
+  } else if (selectedCategory) {
+    // 👇 CHANGEMENT ICI : On utilise "p.category" au lieu de "p.subCategory"
+    filteredProducts = allProducts.filter(p => 
+      (p.category || "").trim().toLowerCase() === selectedCategory.trim().toLowerCase()
+    );
+  }
 
   const sortedProducts = [...filteredProducts].sort((a, b) => {
-    if (sortBy === 'price-asc') return a.price - b.price;
-    if (sortBy === 'price-desc') return b.price - a.price;
-    return 0; // popular
+    if (sortBy === "price-asc") return (a.price || 0) - (b.price || 0);
+    if (sortBy === "price-desc") return (b.price || 0) - (a.price || 0);
+    return 0; 
   });
 
-  useEffect(() => {
-    const toggleVisibility = () => window.scrollY > 300 ? ChevronsetIsVisible(true) : ChevronsetIsVisible(false);
-    window.addEventListener("scroll", toggleVisibility);
-    return () => window.removeEventListener("scroll", toggleVisibility);
-  }, []);
-
-  const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
-
+  // --- ACTIONS ---
   const handleMainCategoryClick = (cat: any) => {
     setActiveMainCat(cat);
     setStep(2);
-    setGlobalSearch('');
   };
 
   const handleSubCategoryClick = (subCatId: string) => {
     setSelectedCategory(subCatId);
     setStep(3);
-    setGlobalSearch('');
   };
 
-  // Rendu de l'en-tête de la boutique (Espace Pro)
+  const addToCart = (product: any) => {
+    setCart(prev => {
+      const existing = prev.find(item => item.id === product.id);
+      if (existing) return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
+      return [...prev, { ...product, quantity: 1 }];
+    });
+  };
+
+  const updateQuantity = (id: string, qty: number) => {
+    if (qty < 1) return removeFromCart(id);
+    setCart(prev => prev.map(item => item.id === id ? { ...item, quantity: qty } : item));
+  };
+
+  const removeFromCart = (id: string) => {
+    setCart(prev => prev.filter(item => item.id !== id));
+  };
+
+  const getTotalPrice = () => cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
+
+  // Gérer l'affichage du bouton de retour en haut
+  useEffect(() => {
+    const toggleVisibility = () => window.scrollY > 300 ? setChevronisVisible(true) : setChevronisVisible(false);
+    window.addEventListener("scroll", toggleVisibility);
+    return () => window.removeEventListener("scroll", toggleVisibility);
+  }, []);
+
   return (
     <>
       <DynamicHead title="ETN - Catalogue Professionnel" favicon="/images/favicon.png" />
@@ -274,10 +249,10 @@ export default function ProductPage() {
               </div>
             )}
 
-{/* ÉTAPE 2 : SOUS-CATÉGORIES */}
+            {/* ÉTAPE 2 : SOUS-CATÉGORIES */}
             {step === 2 && !globalSearch && activeMainCat && (
               <div className="animate-fade-in">
-                <div className="mb-8 flex gap-4"> {/* J'ai ajouté un flex pour aligner le bouton retour et le texte */}
+                <div className="mb-8 flex gap-4"> 
                     <button onClick={() => setStep(1)} className="p-2 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 text-gray-600 transition-colors h-fit mt-1">
                         <ArrowLeft className="w-5 h-5" />
                     </button>
@@ -294,7 +269,6 @@ export default function ProductPage() {
                       onClick={() => handleSubCategoryClick(subCat.id)}
                       className="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-blue-900 hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col"
                     >
-                      {/* Conteneur de l'image (identique à l'étape 1) */}
                       <div className="h-48 overflow-hidden bg-gray-100">
                         <img 
                           src={subCat.image} 
@@ -302,11 +276,8 @@ export default function ProductPage() {
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                         />
                       </div>
-                      
-                      {/* Conteneur du texte (identique à l'étape 1) */}
                       <div className="p-5">
                         <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-900 transition-colors">{subCat.name}</h3>
-                        {/* Texte de remplacement pour garder la même hauteur de carte */}
                         <p className="text-gray-500 text-sm mt-1">Voir les articles</p> 
                       </div>
                     </div>
@@ -431,7 +402,6 @@ export default function ProductPage() {
                         </div>
                     ) : (
                         <div className="space-y-4">
-                             {/* ... Ici tu gardes ton mapping du panier existant (item.name, updateQuantity, etc.) ... */}
                              {cart.map(item => (
                                 <div key={item.id} className="bg-white p-4 rounded-xl border border-gray-200 flex items-center gap-4">
                                     <div className="w-16 h-16 bg-gray-50 rounded-lg flex items-center justify-center border border-gray-100 p-1 flex-shrink-0">

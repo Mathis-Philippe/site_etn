@@ -3,28 +3,15 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "sqlite" // Ou PostgreSQL si tu déploies sur Vercel avec Supabase/Neon
+  url      = env("DATABASE_URL")
 }
 
-model Categorie {
-  id              String         @id @default(cuid())
-  nom             String
-  slug            String         @unique
-  sousCategories  SousCategorie[]
-}
-
-model SousCategorie {
-  id          String      @id @default(cuid())
-  nom         String
-  slug        String      @unique
-  categorieId String
-  categorie   Categorie   @relation(fields: [categorieId], references: [id])
-  produits    Produit[]
-}
-
-model Produit {
-  id              String         @id @default(cuid())
-  nom             String
-  sousCategorieId String
-  sousCategorie   SousCategorie  @relation(fields: [sousCategorieId], references: [id])
+model Client {
+  id         String   @id @default(uuid())
+  codeClient String   @unique
+  password   String?  // Optionnel : Null tant qu'il ne s'est pas connecté
+  nomEntreprise String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }

@@ -1,472 +1,257 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import { Search, ShoppingCart, ArrowLeft, ChevronRight, SlidersHorizontal, Package, X, ChevronUpCircle } from "lucide-react";
-import DynamicHead from "@/components/DynamicHead";
-import { useCart } from "@/context/CartContext";
+import React, { useState } from 'react';
+import Link from 'next/link';
+import catalogueData from '../../../data/catalogue_site_web.json';
 
-interface SubCategory {
-  id: string;
-  name: string;
-  image: string;
-}
+// --- FONCTION POUR TROUVER LA PREMIÈRE IMAGE D'UNE CATÉGORIE ---
+const trouverPremiereImage = (noeud: any): string | null => {
+  if (!noeud) return null;
+  if (Array.isArray(noeud)) {
+    const produitAvecImage = noeud.find((p: any) => p && p.image);
+    return produitAvecImage ? produitAvecImage.image : null;
+  }
+  if (noeud._produits && Array.isArray(noeud._produits)) {
+    const produitAvecImage = noeud._produits.find((p: any) => p && p.image);
+    if (produitAvecImage) return produitAvecImage.image;
+  }
+  for (const cle of Object.keys(noeud)) {
+    if (cle === '_produits') continue;
+    const imageTrouvee = trouverPremiereImage(noeud[cle]);
+    if (imageTrouvee) return imageTrouvee;
+  }
+  return null;
+};
 
-interface Category {
-  id: string;
-  name: string;
-  image: string;
-  subCategories: SubCategory[];
-}
+export default function ProduitsPage() {
+  const [selectedCat1, setSelectedCat1] = useState<string | null>(null);
+  const [selectedCat2, setSelectedCat2] = useState<string | null>(null);
+  const [selectedCat3, setSelectedCat3] = useState<string | null>(null);
+  const [selectedFamille, setSelectedFamille] = useState<string | null>(null);
 
-interface CatalogProduct {
-  id: string;
-  name: string;
-  slug: string;
-  description: string;
-  price: number;
-  inStock: boolean;
-  badge?: string;
-  image?: string;
-  mainCategory: string;
-  category: string;
-}
+  // --- ANALYSE DES DONNÉES ---
+  const categories1 = Object.keys(catalogueData);
+  const dataCat1 = selectedCat1 ? (catalogueData as any)[selectedCat1] : null;
+  const categories2 = dataCat1 ? Object.keys(dataCat1).filter(k => k !== '_produits') : [];
+  const dataCat2 = selectedCat2 && dataCat1 ? dataCat1[selectedCat2] : null;
+  const categories3 = dataCat2 ? Object.keys(dataCat2).filter(k => k !== '_produits') : [];
 
-export default function CataloguePage() {
-  // --- ÉTATS ---
-  const [step, setStep] = useState(1);
-  const [globalSearch, setGlobalSearch] = useState("");
-  // On remplace "any" par "Category | null"
-  const [activeMainCat, setActiveMainCat] = useState<Category | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [sortBy, setSortBy] = useState("popular");
-  
-  // On remplace "any[]" par "CatalogProduct[]"
-  const [allProducts, setAllProducts] = useState<CatalogProduct[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  let produitsAafficher: any[] = [];
+  let showCat1 = false;
+  let showCat2 = false;
+  let showCat3 = false;
+  let showFamilles = false;
 
-  // 2. ON UTILISE LE CERVEAU GLOBAL DU PANIER AU LIEU DU PANIER LOCAL
-  const { cart, addToCart, updateQuantity, removeFromCart, cartTotal } = useCart();
-  
-  const [showCart, setShowCart] = useState(false);
-  const [ChevronisVisible, setChevronisVisible] = useState(false);
-  const placeholderProduct = "/images/placeholder.webp";
-
-  // Arbre de catégories en dur
-  const categoryTree: Category[] = [
-    { 
-      id: "composants", 
-      name: "Composants Hydrauliques", 
-      image: "/images/flexibles.jpg", 
-      subCategories: [
-        { id: "pompes", name: "Pompes", image: "/images/pompe.jpg" }, 
-        { id: "flexibles", name: "Flexibles", image: "/images/flexibles.jpg" }
-      ] 
-    },
-    { 
-      id: "connectique", 
-      name: "Connectique", 
-      image: "/images/raccord.jpg",
-      subCategories: [
-        { id: "raccords", name: "Raccords", image: "/images/raccord.jpg" }
-      ] 
-    }
-  ];
-
-  // --- RÉCUPÉRATION DES PRODUITS EXCEL ---
-  useEffect(() => {
-    async function fetchProduits() {
-      try {
-        const res = await fetch('/api/produits?t=' + new Date().getTime(), { cache: 'no-store' });
-        const data = await res.json();
-        setAllProducts(data);
-      } catch (error) {
-        console.error("Erreur chargement produits:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchProduits();
-  }, []);
-
-  // --- LOGIQUE DE FILTRAGE ET TRI ---
-  let filteredProducts = allProducts;
-  
-  if (globalSearch) {
-    filteredProducts = allProducts.filter(p => 
-      (p.name || "").toLowerCase().includes(globalSearch.trim().toLowerCase()) ||
-      (p.description || "").toLowerCase().includes(globalSearch.trim().toLowerCase())
-    );
-  } else if (selectedCategory) {
-    filteredProducts = allProducts.filter(p => 
-      (p.category || "").trim().toLowerCase() === selectedCategory.trim().toLowerCase()
-    );
+  if (!selectedCat1) {
+    showCat1 = true;
+  } else if (!selectedCat2) {
+    showCat2 = categories2.length > 0;
+    if (dataCat1 && dataCat1._produits) produitsAafficher = dataCat1._produits;
+  } else if (!selectedCat3) {
+    showCat3 = categories3.length > 0;
+    if (dataCat2 && dataCat2._produits) produitsAafficher = dataCat2._produits;
+  } else {
+    if (dataCat2 && dataCat2[selectedCat3]) produitsAafficher = dataCat2[selectedCat3];
   }
 
-  const sortedProducts = [...filteredProducts].sort((a, b) => {
-    if (sortBy === "price-asc") return (a.price || 0) - (b.price || 0);
-    if (sortBy === "price-desc") return (b.price || 0) - (a.price || 0);
-    return 0; 
-  });
+  if (produitsAafficher.length > 0) {
+    showFamilles = true;
+  }
 
-  // --- ACTIONS ---
-  // On remplace "any" par "Category"
-  const handleMainCategoryClick = (cat: Category) => {
-    setActiveMainCat(cat);
-    setStep(2);
+  // --- REGROUPEMENT PAR FAMILLE ---
+  const produitsGroupesParFamille = produitsAafficher.reduce((acc: any, p: any) => {
+    const famille = p.famille || p.designation;
+    if (!acc[famille]) acc[famille] = [];
+    acc[famille].push(p);
+    return acc;
+  }, {});
+
+  const imageFamilleSelectionnee = selectedFamille && produitsGroupesParFamille[selectedFamille]?.length > 0 
+    ? produitsGroupesParFamille[selectedFamille][0].image 
+    : null;
+
+  // --- FONCTIONS DE NAVIGATION ---
+  const handleBackToCat1 = () => { setSelectedCat1(null); setSelectedCat2(null); setSelectedCat3(null); setSelectedFamille(null); };
+  const handleBackToCat2 = () => { setSelectedCat2(null); setSelectedCat3(null); setSelectedFamille(null); };
+  const handleBackToCat3 = () => { setSelectedCat3(null); setSelectedFamille(null); };
+
+const genererLienPDF = (famille: string) => {
+    let nomFichier = famille.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        nomFichier = nomFichier.replace(/[\s\/"']/g, '_');
+        return `/pdfs/${nomFichier}.pdf`;
   };
-
-  const handleSubCategoryClick = (subCatId: string) => {
-    setSelectedCategory(subCatId);
-    setStep(3);
-  };
-
-  const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
-
-  useEffect(() => {
-    const toggleVisibility = () => window.scrollY > 300 ? setChevronisVisible(true) : setChevronisVisible(false);
-    window.addEventListener("scroll", toggleVisibility);
-    return () => window.removeEventListener("scroll", toggleVisibility);
-  }, []);
 
   return (
-    <>
-      <DynamicHead title="ETN - Catalogue Professionnel" favicon="/images/favicon.png" />
-      
-      <main className="min-h-screen bg-[#F8FAFC]">
-        
-        {/* NAVBAR */}
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
-          <div className="container mx-auto px-6 h-20 flex items-center justify-between gap-6">
-            
-            <div className="flex items-center space-x-2">
-                <span className="hidden sm:inline-block text-sm font-medium text-gray-400 border-l border-gray-300 pl-2 ml-2">Catalogue</span>
-            </div>
+    <div className="container mx-auto px-4 py-8 max-w-7xl min-h-screen">
+      <h1 className="text-4xl font-bold mb-8 text-slate-800">Nos Produits</h1>
 
-            <div className="flex-1 max-w-2xl hidden md:block relative">
-                <div className="relative group">
-                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-blue-600 transition-colors" />
-                    <input 
-                        type="text" 
-                        placeholder="Rechercher une référence, un produit..." 
-                        value={globalSearch}
-                        onChange={(e) => {
-                            setGlobalSearch(e.target.value);
-                            if (e.target.value.length > 0 && step < 3) setStep(3);
-                        }}
-                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
-                    />
+      {/* --- FIL D'ARIANE --- */}
+      <nav className="mb-8 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+        <button onClick={handleBackToCat1} className="hover:text-blue-600 transition-colors">Accueil</button>
+        {selectedCat1 && <><span className="text-slate-300">/</span><button onClick={handleBackToCat2} className={`hover:text-blue-600 ${!selectedCat2 ? 'font-semibold text-slate-800' : ''}`}>{selectedCat1}</button></>}
+        {selectedCat2 && <><span className="text-slate-300">/</span><button onClick={handleBackToCat3} className={`hover:text-blue-600 ${!selectedCat3 ? 'font-semibold text-slate-800' : ''}`}>{selectedCat2}</button></>}
+        {selectedCat3 && <><span className="text-slate-300">/</span><button onClick={() => setSelectedFamille(null)} className={`hover:text-blue-600 ${!selectedFamille ? 'font-semibold text-slate-800' : ''}`}>{selectedCat3}</button></>}
+        {selectedFamille && <><span className="text-slate-300">/</span><span className="text-blue-800 font-semibold">{selectedFamille}</span></>}
+      </nav>
+
+      {/* --- TUILES DES CATÉGORIES 1 --- */}
+      {showCat1 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {categories1.map((cat1) => {
+            const imageApercu = trouverPremiereImage((catalogueData as any)[cat1]);
+            return (
+              <button key={cat1} onClick={() => setSelectedCat1(cat1)} className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md hover:border-blue-500 transition-all text-left flex flex-col group overflow-hidden">
+                <div className="h-40 bg-slate-50 flex items-center justify-center border-b border-slate-100 p-4 relative w-full overflow-hidden">
+                  {imageApercu ? <img src={imageApercu} alt={cat1} className="object-contain w-full h-full group-hover:scale-105 transition-transform duration-300 mix-blend-multiply" /> : <span className="text-slate-400 text-sm">Image non disponible</span>}
                 </div>
-            </div>
-
-            <button 
-                onClick={() => setShowCart(true)} 
-                className="relative p-2 text-gray-600 hover:text-blue-900 transition-colors flex items-center space-x-2"
-            >
-                <div className="relative">
-                    <ShoppingCart className="w-6 h-6" />
-                    {cart.length > 0 && (
-                        <span className="absolute -top-1.5 -right-1.5 bg-yellow-400 text-blue-900 text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border-2 border-white">
-                            {cart.length}
-                        </span>
-                    )}
+                <div className="p-5 flex flex-col flex-grow w-full">
+                  <span className="text-lg font-bold text-slate-800 group-hover:text-blue-700 mb-1">{cat1}</span>
+                  <span className="text-sm text-slate-500 mt-auto pt-2">Explorer la gamme →</span>
                 </div>
-                <span className="hidden sm:block text-sm font-semibold">Panier</span>
-            </button>
-          </div>
-          
-          <div className="md:hidden border-t border-gray-100 p-4 bg-gray-50">
-             <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input 
-                    type="text" 
-                    placeholder="Rechercher..." 
-                    value={globalSearch}
-                    onChange={(e) => {
-                        setGlobalSearch(e.target.value);
-                        if (e.target.value.length > 0 && step < 3) setStep(3);
-                    }}
-                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm"
-                />
-            </div>
-          </div>
-        </header>
-
-        <div className="container mx-auto px-6 py-8">
-            
-            <nav className="flex items-center space-x-2 text-sm text-gray-500 mb-8 overflow-x-auto whitespace-nowrap pb-2">
-                <button 
-                    onClick={() => { setStep(1); setGlobalSearch(''); }}
-                    className={`hover:text-blue-900 transition-colors ${step === 1 && !globalSearch ? 'text-blue-900 font-semibold' : ''}`}
-                >
-                    Accueil Catalogue
-                </button>
-                
-                {step >= 2 && !globalSearch && (
-                    <>
-                        <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
-                        <button 
-                            onClick={() => setStep(2)}
-                            className={`hover:text-blue-900 transition-colors ${step === 2 ? 'text-blue-900 font-semibold' : ''}`}
-                        >
-                            {activeMainCat?.name}
-                        </button>
-                    </>
-                )}
-
-                {step >= 3 && !globalSearch && (
-                    <>
-                        <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
-                        <span className="text-blue-900 font-semibold">{selectedCategory}</span>
-                    </>
-                )}
-
-                {globalSearch && (
-                    <>
-                        <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
-                        <span className="text-blue-900 font-semibold">Résultats pour "{globalSearch}"</span>
-                    </>
-                )}
-            </nav>
-
-            {step === 1 && !globalSearch && (
-              <div className="animate-fade-in">
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Nos Familles de Produits</h1>
-                    <p className="text-gray-500 mt-2">Sélectionnez une catégorie pour affiner votre recherche.</p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {categoryTree.map((cat) => (
-                    <div 
-                      key={cat.id}
-                      onClick={() => handleMainCategoryClick(cat)}
-                      className="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-blue-900 hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col"
-                    >
-                      <div className="h-48 overflow-hidden bg-gray-100">
-                        <img 
-                            src={cat.image} 
-                            alt={cat.name} 
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                        />
-                      </div>
-                      <div className="p-5">
-                        <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-900 transition-colors">{cat.name}</h3>
-                        <p className="text-gray-500 text-sm mt-1">{cat.subCategories.length} sous-catégories</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {step === 2 && !globalSearch && activeMainCat && (
-              <div className="animate-fade-in">
-                <div className="mb-8 flex gap-4"> 
-                    <button onClick={() => setStep(1)} className="p-2 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 text-gray-600 transition-colors h-fit mt-1">
-                        <ArrowLeft className="w-5 h-5" />
-                    </button>
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">{activeMainCat.name}</h1>
-                        <p className="text-gray-500 mt-1">Précisez votre besoin.</p>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {/* On remplace "any" par "SubCategory" ici aussi */}
-                  {activeMainCat.subCategories.map((subCat: SubCategory) => (
-                    <div 
-                      key={subCat.id}
-                      onClick={() => handleSubCategoryClick(subCat.id)}
-                      className="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-blue-900 hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col"
-                    >
-                      <div className="h-48 overflow-hidden bg-gray-100">
-                        <img 
-                          src={subCat.image} 
-                          alt={subCat.name} 
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                        />
-                      </div>
-                      <div className="p-5">
-                        <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-900 transition-colors">{subCat.name}</h3>
-                        <p className="text-gray-500 text-sm mt-1">Voir les articles</p> 
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* ÉTAPE 3 : PRODUITS */}
-            {(step === 3 || globalSearch) && (
-              <div className="animate-fade-in">
-                
-                <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 pb-4 border-b border-gray-200 gap-4">
-                  <div>
-                    {globalSearch ? (
-                        <h1 className="text-2xl font-bold text-gray-900">Recherche : "{globalSearch}"</h1>
-                    ) : (
-                        <h1 className="text-2xl font-bold text-gray-900">{selectedCategory}</h1>
-                    )}
-                    <p className="text-sm text-gray-500 mt-1">{sortedProducts.length} référence(s) trouvée(s)</p>
-                  </div>
-                  
-                  <div className="flex items-center space-x-3">
-                    <SlidersHorizontal className="w-5 h-5 text-gray-400" />
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value)}
-                      className="py-2 pl-3 pr-8 border border-gray-200 rounded-lg text-sm bg-white text-gray-700 outline-none focus:border-blue-500"
-                    >
-                      <option value="popular">Trier par : Pertinence</option>
-                      <option value="price-asc">Prix : Croissant</option>
-                      <option value="price-desc">Prix : Décroissant</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {isLoading ? (
-                     <div className="col-span-full flex justify-center py-20">
-                       <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-900"></div>
-                     </div>
-                  ) : sortedProducts.length === 0 ? (
-                    <div className="col-span-full text-center py-16 bg-white rounded-xl border border-dashed border-gray-300">
-                      <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                      <p className="text-lg text-gray-600 font-medium">Aucun produit ne correspond à vos critères.</p>
-                      <button onClick={() => { setGlobalSearch(''); setStep(1); }} className="mt-4 text-blue-600 hover:underline font-medium text-sm">
-                          Retourner au catalogue
-                      </button>
-                    </div>
-                  ) : (
-                    sortedProducts.map(product => (
-                      <div key={product.id} className="bg-white rounded-xl border border-gray-200 hover:shadow-lg transition-all duration-200 flex flex-col overflow-hidden group">
-                        
-                        <Link href={`/produits/${product.slug}`} className="block relative h-48 bg-white p-4 border-b border-gray-100 flex items-center justify-center">
-                            <img 
-                                src={product.image || placeholderProduct} 
-                                alt={product.name} 
-                                className="max-h-full object-contain group-hover:scale-105 transition-transform duration-300" 
-                            />
-                            {product.badge && (
-                                <span className="absolute top-3 left-3 bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wide border border-blue-200">
-                                    {product.badge}
-                                </span>
-                            )}
-                        </Link>
-
-                        <div className="p-5 flex flex-col flex-1">
-                          <Link href={`/produits/${product.slug}`} className="flex-1">
-                            <h3 className="font-bold text-gray-900 text-sm mb-1 line-clamp-2 hover:text-blue-600">{product.name}</h3>
-                            <p className="text-xs text-gray-500 mb-4 line-clamp-2">{product.description}</p>
-                          </Link>
-                          
-                          <div className="mt-auto flex items-end justify-between pt-4">
-                            <div>
-                                <span className="text-xs text-gray-400 block mb-0.5">Prix pro HT</span>
-                                <span className="text-xl font-bold text-gray-900">{product.price.toFixed(2)}€</span>
-                            </div>
-                            
-                            <button
-                              onClick={(e) => { 
-                                e.preventDefault(); 
-                                // On utilise la fonction addToCart du contexte global !
-                                addToCart({
-                                  id: product.id,
-                                  name: product.name,
-                                  price: product.price,
-                                  image: product.image,
-                                  inStock: product.inStock
-                                }, 1); 
-                              }}
-                              disabled={!product.inStock}
-                              className={`p-2.5 rounded-lg transition-colors flex items-center justify-center ${
-                                product.inStock 
-                                ? 'bg-gray-900 text-white hover:bg-blue-600' 
-                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                              }`}
-                              title={product.inStock ? "Ajouter au panier" : "Rupture de stock"}
-                            >
-                              <ShoppingCart className="w-5 h-5" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
+              </button>
+            );
+          })}
         </div>
+      )}
 
-        {/* PANIER SLIDE-OVER */}
-        {showCart && (
-          <div className="fixed inset-0 z-50 flex justify-end">
-            <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity" onClick={() => setShowCart(false)}></div>
-            <div className="relative w-full max-w-md h-full bg-white shadow-2xl flex flex-col animate-slide-in-right">
-                
-                <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-white">
-                  <h2 className="text-xl font-bold text-gray-900 flex items-center">
-                      Mon Panier 
-                      <span className="ml-3 bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-sm">{cart.length}</span>
-                  </h2>
-                  <button onClick={() => setShowCart(false)} className="text-gray-400 hover:text-gray-800 p-2 rounded-full hover:bg-gray-100 transition-colors">
-                    <X className="w-5 h-5" />
-                  </button>
+      {/* --- TUILES DES CATÉGORIES 2 --- */}
+      {showCat2 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {categories2.map((cat2) => {
+            const imageApercu = trouverPremiereImage(dataCat1[cat2]);
+            return (
+              <button key={cat2} onClick={() => setSelectedCat2(cat2)} className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md hover:border-blue-500 transition-all text-left flex flex-col group overflow-hidden">
+                <div className="h-40 bg-slate-50 flex items-center justify-center border-b border-slate-100 p-4 relative w-full overflow-hidden">
+                  {imageApercu ? <img src={imageApercu} alt={cat2} className="object-contain w-full h-full group-hover:scale-105 transition-transform duration-300 mix-blend-multiply" /> : <span className="text-slate-400 text-sm">Image non disponible</span>}
                 </div>
-                
-                <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-                    {cart.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-gray-500">
-                            <ShoppingCart className="w-16 h-16 text-gray-300 mb-4" />
-                            <p>Votre panier est vide.</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-4">
-                             {cart.map(item => (
-                                <div key={item.id} className="bg-white p-4 rounded-xl border border-gray-200 flex items-center gap-4">
-                                    <div className="w-16 h-16 bg-gray-50 rounded-lg flex items-center justify-center border border-gray-100 p-1 flex-shrink-0">
-                                        <img src={item.image || placeholderProduct} alt={item.name} className="max-h-full object-contain" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className="text-sm font-semibold text-gray-900 truncate">{item.name}</h4>
-                                        <div className="text-sm font-bold text-gray-900 mt-1">{item.price.toFixed(2)}€</div>
-                                        <div className="flex items-center space-x-3 mt-2">
-                                            <div className="flex items-center border border-gray-200 rounded-md">
-                                                <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="px-2 py-1 text-gray-500 hover:bg-gray-50">-</button>
-                                                <span className="px-2 text-xs font-medium min-w-[20px] text-center">{item.quantity}</span>
-                                                <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="px-2 py-1 text-gray-500 hover:bg-gray-50">+</button>
-                                            </div>
-                                            <button onClick={() => removeFromCart(item.id)} className="text-xs text-red-500 hover:underline">Supprimer</button>
-                                        </div>
-                                    </div>
-                                </div>
-                             ))}
-                        </div>
-                    )}
+                <div className="p-5 flex flex-col flex-grow w-full">
+                  <span className="text-md font-bold text-slate-800 group-hover:text-blue-700 mb-1">{cat2}</span>
+                  <span className="text-sm text-slate-500 mt-auto pt-2">Voir les sous-catégories →</span>
                 </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
-                {cart.length > 0 && (
-                    <div className="p-6 bg-white border-t border-gray-100">
-                        <div className="flex justify-between items-center mb-4">
-                            <span className="text-gray-500">Total HT</span>
-                            <span className="text-2xl font-bold text-gray-900">{cartTotal.toFixed(2)}€</span>
-                        </div>
-                        <button onClick={() => setShowCart(false)} className="w-full bg-blue-600 text-white py-3.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm">
-                            Demander un devis
-                        </button>
+      {/* --- TUILES DES CATÉGORIES 3 --- */}
+      {showCat3 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {categories3.map((cat3) => {
+            const imageApercu = trouverPremiereImage(dataCat2[cat3]);
+            return (
+              <button key={cat3} onClick={() => setSelectedCat3(cat3)} className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md hover:border-blue-500 transition-all text-left flex flex-col group overflow-hidden">
+                <div className="h-40 bg-slate-50 flex items-center justify-center border-b border-slate-100 p-4 relative w-full overflow-hidden">
+                  {imageApercu ? <img src={imageApercu} alt={cat3} className="object-contain w-full h-full group-hover:scale-105 transition-transform duration-300 mix-blend-multiply" /> : <span className="text-slate-400 text-sm">Image non disponible</span>}
+                </div>
+                <div className="p-5 flex flex-col flex-grow w-full">
+                  <span className="text-md font-bold text-slate-800 group-hover:text-blue-700 mb-1">{cat3}</span>
+                  <span className="text-sm text-slate-500 mt-auto pt-2">Voir les modèles →</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* --- ÉTAPE 4 : CARTES FAMILLES --- */}
+      {showFamilles && !selectedFamille && (
+        <div className="mt-8">
+          <p className="mb-6 text-slate-600 font-medium border-b pb-2">
+            {Object.keys(produitsGroupesParFamille).length} famille(s) de modèles
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {Object.entries(produitsGroupesParFamille).map(([nomFamille, articles]: [string, any]) => {
+              const premierArticle = articles[0];
+              return (
+                <div key={nomFamille} onClick={() => setSelectedFamille(nomFamille)} className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm hover:shadow-md hover:border-blue-500 transition-all cursor-pointer group flex flex-col">
+                  <div className="h-48 bg-slate-50 flex items-center justify-center border-b border-slate-200 relative overflow-hidden">
+                    {premierArticle.image ? <img src={premierArticle.image} alt={nomFamille} className="object-contain w-full h-full p-4 mix-blend-multiply group-hover:scale-105 transition-transform duration-300" /> : <span className="text-slate-400 text-sm">Image non disponible</span>}
+                  </div>
+                  <div className="p-4 flex flex-col flex-grow">
+                    <h3 className="font-bold text-slate-800 mb-2 leading-tight line-clamp-3 group-hover:text-blue-700 transition-colors" title={nomFamille}>{nomFamille}</h3>
+                    <div className="mt-auto pt-4">
+                      <span className="inline-block bg-blue-50 text-blue-700 text-xs font-semibold px-3 py-1.5 rounded-full border border-blue-100">{articles.length} déclinaison(s)</span>
                     </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* --- ÉTAPE 5 : FICHE PRODUIT GLOBALE + TABLEAU --- */}
+      {selectedFamille && (
+        <div className="mt-8 animate-fade-in-up">
+          
+          <div className="flex flex-col md:flex-row gap-8 mb-12 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <div className="w-full md:w-1/3 flex items-center justify-center bg-white rounded-lg p-4">
+               {imageFamilleSelectionnee ? (
+                  <img src={imageFamilleSelectionnee} alt={selectedFamille} className="object-contain w-full max-h-[300px]" />
+                ) : (
+                  <div className="w-full h-48 bg-slate-100 flex items-center justify-center rounded border border-slate-200">
+                    <span className="text-slate-400">Image non disponible</span>
+                  </div>
                 )}
             </div>
+            
+            <div className="w-full md:w-2/3 flex flex-col justify-center">
+              <h2 className="text-3xl md:text-3xl font-bold text-blue-900 mb-6 leading-tight">{selectedFamille}</h2>
+              
+              <div className="flex flex-wrap gap-4 items-center mt-4">
+                
+                {/* --- LE BOUTON AVEC LE LIEN CORRIGÉ --- */}
+                <a 
+                  href={genererLienPDF(selectedFamille)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-bold py-3 px-6 rounded-full transition-colors uppercase text-sm shadow-md inline-block text-center"
+                >
+                  Documentation Technique
+                </a>
+              </div>
+            </div>
           </div>
-        )}
-      </main>
-      
-      {ChevronisVisible && (
-        <button onClick={scrollToTop} className="fixed bottom-8 right-8 p-3 rounded-full bg-white text-gray-600 shadow-lg border border-gray-200 hover:text-blue-600 hover:border-blue-600 transition-all z-50">
-          <ChevronUpCircle className="w-6 h-6" />
-        </button>
+
+          <div className="bg-white rounded-sm shadow-sm border border-slate-200 overflow-hidden mb-12">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse whitespace-nowrap">
+                <thead>
+                  <tr className="bg-blue-800 text-white text-xs uppercase tracking-wider font-bold border-b-2 border-yellow-500">
+                    <th className="py-4 px-6 border-r border-blue-700/50">Références</th>
+                    <th className="py-4 px-6 border-r border-blue-700/50">Désignation</th>
+                    <th className="py-4 px-6 border-r border-blue-700/50 text-center">Quantité</th>
+                    <th className="py-4 px-6 text-center">Ajout</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {produitsGroupesParFamille[selectedFamille]?.map((produit: any, idx: number) => (
+                    <tr key={idx} className="hover:bg-blue-50/50 transition-colors group">
+                      <td className="py-4 px-6 font-semibold text-blue-700 underline hover:text-blue-900 cursor-pointer">
+                        {produit.ref_etn || '-'}
+                      </td>
+                      <td className="py-4 px-6 text-sm text-slate-700">
+                        {produit.designation}
+                      </td>
+                      <td className="py-4 px-6 text-center">
+                        <input type="number" min="0" defaultValue="0" className="w-20 border border-slate-300 rounded p-2 text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow" />
+                      </td>
+                      <td className="py-4 px-6 text-center">
+                        <button className="text-slate-500 hover:text-blue-800 transition-colors p-2 hover:bg-white rounded-full shadow-sm opacity-75 group-hover:opacity-100">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6 inline-block">
+                             <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+                          </svg>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       )}
-    </>
+    </div>
   );
 }

@@ -3,15 +3,23 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite" // Ou PostgreSQL si tu déploies sur Vercel avec Supabase/Neon
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
 }
 
 model Client {
   id         String   @id @default(uuid())
   codeClient String   @unique
+  email         String?  @unique
   password   String?  // Optionnel : Null tant qu'il ne s'est pas connecté
   nomEntreprise String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+model ResetToken {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
 }

@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import catalogueData from '../../../data/catalogue_site_web.json';
 
-// --- FONCTION POUR TROUVER LA PREMIÈRE IMAGE D'UNE CATÉGORIE ---
 const trouverPremiereImage = (noeud: any): string | null => {
   if (!noeud) return null;
   if (Array.isArray(noeud)) {
@@ -29,7 +28,13 @@ export default function ProduitsPage() {
   const [selectedCat3, setSelectedCat3] = useState<string | null>(null);
   const [selectedFamille, setSelectedFamille] = useState<string | null>(null);
 
-  // --- ANALYSE DES DONNÉES ---
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  }, [selectedCat1, selectedCat2, selectedCat3, selectedFamille]);
+
   const categories1 = Object.keys(catalogueData);
   const dataCat1 = selectedCat1 ? (catalogueData as any)[selectedCat1] : null;
   const categories2 = dataCat1 ? Object.keys(dataCat1).filter(k => k !== '_produits') : [];
@@ -58,7 +63,6 @@ export default function ProduitsPage() {
     showFamilles = true;
   }
 
-  // --- REGROUPEMENT PAR FAMILLE ---
   const produitsGroupesParFamille = produitsAafficher.reduce((acc: any, p: any) => {
     const famille = p.famille || p.designation;
     if (!acc[famille]) acc[famille] = [];
@@ -70,12 +74,11 @@ export default function ProduitsPage() {
     ? produitsGroupesParFamille[selectedFamille][0].image 
     : null;
 
-  // --- FONCTIONS DE NAVIGATION ---
   const handleBackToCat1 = () => { setSelectedCat1(null); setSelectedCat2(null); setSelectedCat3(null); setSelectedFamille(null); };
   const handleBackToCat2 = () => { setSelectedCat2(null); setSelectedCat3(null); setSelectedFamille(null); };
   const handleBackToCat3 = () => { setSelectedCat3(null); setSelectedFamille(null); };
 
-const genererLienPDF = (famille: string) => {
+  const genererLienPDF = (famille: string) => {
     let nomFichier = famille.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         nomFichier = nomFichier.replace(/[\s\/"']/g, '_');
         return `/pdfs/${nomFichier}.pdf`;
@@ -85,7 +88,6 @@ const genererLienPDF = (famille: string) => {
     <div className="container mx-auto px-4 py-8 max-w-7xl min-h-screen">
       <h1 className="text-4xl font-bold mb-8 text-slate-800">Nos Produits</h1>
 
-      {/* --- FIL D'ARIANE --- */}
       <nav className="mb-8 flex flex-wrap items-center gap-2 text-sm text-slate-500">
         <button onClick={handleBackToCat1} className="hover:text-blue-600 transition-colors">Accueil</button>
         {selectedCat1 && <><span className="text-slate-300">/</span><button onClick={handleBackToCat2} className={`hover:text-blue-600 ${!selectedCat2 ? 'font-semibold text-slate-800' : ''}`}>{selectedCat1}</button></>}
@@ -94,7 +96,6 @@ const genererLienPDF = (famille: string) => {
         {selectedFamille && <><span className="text-slate-300">/</span><span className="text-blue-800 font-semibold">{selectedFamille}</span></>}
       </nav>
 
-      {/* --- TUILES DES CATÉGORIES 1 --- */}
       {showCat1 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {categories1.map((cat1) => {
@@ -114,7 +115,6 @@ const genererLienPDF = (famille: string) => {
         </div>
       )}
 
-      {/* --- TUILES DES CATÉGORIES 2 --- */}
       {showCat2 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {categories2.map((cat2) => {
@@ -134,7 +134,6 @@ const genererLienPDF = (famille: string) => {
         </div>
       )}
 
-      {/* --- TUILES DES CATÉGORIES 3 --- */}
       {showCat3 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {categories3.map((cat3) => {
@@ -154,7 +153,6 @@ const genererLienPDF = (famille: string) => {
         </div>
       )}
 
-      {/* --- ÉTAPE 4 : CARTES FAMILLES --- */}
       {showFamilles && !selectedFamille && (
         <div className="mt-8">
           <p className="mb-6 text-slate-600 font-medium border-b pb-2">
@@ -181,7 +179,6 @@ const genererLienPDF = (famille: string) => {
         </div>
       )}
 
-      {/* --- ÉTAPE 5 : FICHE PRODUIT GLOBALE + TABLEAU --- */}
       {selectedFamille && (
         <div className="mt-8 animate-fade-in-up">
           
@@ -201,7 +198,6 @@ const genererLienPDF = (famille: string) => {
               
               <div className="flex flex-wrap gap-4 items-center mt-4">
                 
-                {/* --- LE BOUTON AVEC LE LIEN CORRIGÉ --- */}
                 <a 
                   href={genererLienPDF(selectedFamille)}
                   target="_blank"

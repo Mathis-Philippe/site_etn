@@ -104,12 +104,16 @@ export async function GET() {
               update: {
                 designation: item.designation || '',
                 refEtn: item.ref_etn || '',
+                imageUrl: item.image || null,
+                familleOriginale: item.famille || null,
                 familleId: familleDb.id,
               },
               create: {
                 refDicsa: item.ref_dicsa,
                 designation: item.designation || '',
                 refEtn: item.ref_etn || '',
+                imageUrl: item.image || null,
+                familleOriginale: item.famille || null,
                 familleId: familleDb.id,
               },
             });

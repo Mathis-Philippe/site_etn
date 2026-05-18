@@ -58,14 +58,11 @@ model Famille {
 model Article {
   id          String   @id @default(cuid())
   refDicsa    String   @unique
-  refEtn      String?  // Optionnel car tous ne l'ont peut-être pas
+  refEtn      String?
   designation String
-
-  // Champs pour tes médias (on stockera juste les liens web sous forme de texte)
+  familleOriginale String?
   imageUrl    String?  
   pdfUrl      String?  
-
-  // Relation vers la famille
   familleId   String
   famille     Famille  @relation(fields: [familleId], references: [id], onDelete: Cascade)
   

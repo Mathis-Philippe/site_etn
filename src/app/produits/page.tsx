@@ -2,38 +2,159 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import catalogueData from '../../../data/catalogue_site_web.json';
 
-const trouverPremiereImage = (noeud: any): string | null => {
+// 1. 🌟 NOUVEAU : Le Composant Intelligent qui teste les chemins d'images un par un
+const ImageProduit = ({ produit, alt, className }: { produit: any, alt: string, className: string }) => {
+  const [srcIndex, setSrcIndex] = useState(0);
+
+  useEffect(() => {
+    setSrcIndex(0); // On réinitialise si on change d'image
+  }, [produit]);
+
+  // On construit la liste de tous les chemins possibles
+  const sources: string[] = [];
+  if (produit?.imageUrl) sources.push(produit.imageUrl);
+  if (produit?.ref_dicsa) {
+    sources.push(`/images/produits/${produit.ref_dicsa}.png`); // Nom brut
+    sources.push(`/images/produits/${produit.ref_dicsa.replace(/[\/\\º]/g, '')}.png`); // Sans slashes (ex: MPR12CJ)
+    sources.push(`/images/produits/${produit.ref_dicsa.replace(/[\s\/\\\.\º\-]/g, '')}.png`); // Nettoyage extrême
+  }
+  const uniqueSources = Array.from(new Set(sources));
+
+  // Si on a épuisé la liste et que l'image n'est toujours pas là, on affiche le fallback d'origine
+  if (!produit || uniqueSources.length === 0 || srcIndex >= uniqueSources.length) {
+    return (
+      <div className="flex flex-col items-center justify-center w-full h-full min-h-[120px] bg-slate-50/50">
+        <span className="text-slate-400 text-sm">Image non disponible</span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={uniqueSources[srcIndex]}
+      alt={alt}
+      className={className}
+      onError={() => setSrcIndex(prev => prev + 1)} // Si erreur, on essaye le chemin suivant !
+    />
+  );
+};
+
+// 2. Modifié pour renvoyer le produit complet au lieu d'une simple chaîne de caractères
+const trouverPremierProduit = (noeud: any): any | null => {
   if (!noeud) return null;
   if (Array.isArray(noeud)) {
-    const produitAvecImage = noeud.find((p: any) => p && p.image);
-    return produitAvecImage ? produitAvecImage.image : null;
+    return noeud.find((p: any) => p && (p.imageUrl || p.ref_dicsa)) || null;
   }
   if (noeud._produits && Array.isArray(noeud._produits)) {
-    const produitAvecImage = noeud._produits.find((p: any) => p && p.image);
-    if (produitAvecImage) return produitAvecImage.image;
+    return noeud._produits.find((p: any) => p && (p.imageUrl || p.ref_dicsa)) || null;
   }
   for (const cle of Object.keys(noeud)) {
     if (cle === '_produits') continue;
-    const imageTrouvee = trouverPremiereImage(noeud[cle]);
-    if (imageTrouvee) return imageTrouvee;
+    const produitTrouve = trouverPremierProduit(noeud[cle]);
+    if (produitTrouve) return produitTrouve;
   }
   return null;
 };
 
+// 3. Adaptateur Prisma (Remis au propre, sans regex destructeur)
+const adapterDonneesPrisma = (categoriesDb: any[]) => {
+  const catalogueStructure: any = {};
+
+  categoriesDb.forEach((cat) => {
+    catalogueStructure[cat.nom] = {};
+
+    cat.sousCategories?.forEach((subCat: any) => {
+      if (subCat.nom === '_produits') {
+        const allArticles: any[] = [];
+        subCat.familles?.forEach((fam: any) => {
+          fam.articles?.forEach((art: any) => {
+            allArticles.push({
+              ref_dicsa: art.refDicsa,
+              ref_etn: art.refEtn,
+              designation: art.designation,
+              imageUrl: art.imageUrl, // 🌟 On garde la donnée brute de la base
+              famille: art.familleOriginale || null
+            });
+          });
+        });
+        catalogueStructure[cat.nom]['_produits'] = allArticles;
+      } else {
+        catalogueStructure[cat.nom][subCat.nom] = {};
+
+        subCat.familles?.forEach((fam: any) => {
+          if (fam.nom === '_produits') {
+            const allArticles: any[] = [];
+            fam.articles?.forEach((art: any) => {
+              allArticles.push({
+                ref_dicsa: art.refDicsa,
+                ref_etn: art.refEtn,
+                designation: art.designation,
+                imageUrl: art.imageUrl,
+                famille: art.familleOriginale || null
+              });
+            });
+            catalogueStructure[cat.nom][subCat.nom]['_produits'] = allArticles;
+          } else {
+            const articlesArr: any[] = [];
+            fam.articles?.forEach((art: any) => {
+              articlesArr.push({
+                ref_dicsa: art.refDicsa,
+                ref_etn: art.refEtn,
+                designation: art.designation,
+                imageUrl: art.imageUrl,
+                famille: art.familleOriginale || null
+              });
+            });
+            catalogueStructure[cat.nom][subCat.nom][fam.nom] = articlesArr;
+          }
+        });
+      }
+    });
+  });
+
+  return catalogueStructure;
+};
+
 export default function ProduitsPage() {
+  const [catalogueData, setCatalogueData] = useState<any>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+
   const [selectedCat1, setSelectedCat1] = useState<string | null>(null);
   const [selectedCat2, setSelectedCat2] = useState<string | null>(null);
   const [selectedCat3, setSelectedCat3] = useState<string | null>(null);
   const [selectedFamille, setSelectedFamille] = useState<string | null>(null);
 
   useEffect(() => {
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth'
-    });
+    async function fetchCatalogue() {
+      try {
+        const res = await fetch('/api/produits');
+        const result = await res.json();
+        if (result.success) {
+          const structureFormatee = adapterDonneesPrisma(result.data);
+          setCatalogueData(structureFormatee);
+        }
+      } catch (error) {
+        console.error("❌ Erreur chargement catalogue Prisma :", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchCatalogue();
+  }, []);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [selectedCat1, selectedCat2, selectedCat3, selectedFamille]);
+
+  if (loading || !catalogueData) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-7xl min-h-screen flex flex-col items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-800 mb-4"></div>
+        <p className="text-slate-600 font-medium">Chargement du catalogue ETN depuis la base de données...</p>
+      </div>
+    );
+  }
 
   const categories1 = Object.keys(catalogueData);
   const dataCat1 = selectedCat1 ? (catalogueData as any)[selectedCat1] : null;
@@ -70,18 +191,14 @@ export default function ProduitsPage() {
     return acc;
   }, {});
 
-  const imageFamilleSelectionnee = selectedFamille && produitsGroupesParFamille[selectedFamille]?.length > 0 
-    ? produitsGroupesParFamille[selectedFamille][0].image 
-    : null;
-
   const handleBackToCat1 = () => { setSelectedCat1(null); setSelectedCat2(null); setSelectedCat3(null); setSelectedFamille(null); };
   const handleBackToCat2 = () => { setSelectedCat2(null); setSelectedCat3(null); setSelectedFamille(null); };
   const handleBackToCat3 = () => { setSelectedCat3(null); setSelectedFamille(null); };
 
   const genererLienPDF = (famille: string) => {
     let nomFichier = famille.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        nomFichier = nomFichier.replace(/[\s\/"']/g, '_');
-        return `/pdfs/${nomFichier}.pdf`;
+    nomFichier = nomFichier.replace(/[\s\/"']/g, '_');
+    return `/pdfs/${nomFichier}.pdf`;
   };
 
   return (
@@ -99,11 +216,11 @@ export default function ProduitsPage() {
       {showCat1 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {categories1.map((cat1) => {
-            const imageApercu = trouverPremiereImage((catalogueData as any)[cat1]);
+            const produitApercu = trouverPremierProduit((catalogueData as any)[cat1]);
             return (
               <button key={cat1} onClick={() => setSelectedCat1(cat1)} className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md hover:border-blue-500 transition-all text-left flex flex-col group overflow-hidden">
                 <div className="h-40 bg-slate-50 flex items-center justify-center border-b border-slate-100 p-4 relative w-full overflow-hidden">
-                  {imageApercu ? <img src={imageApercu} alt={cat1} className="object-contain w-full h-full group-hover:scale-105 transition-transform duration-300 mix-blend-multiply" /> : <span className="text-slate-400 text-sm">Image non disponible</span>}
+                  <ImageProduit produit={produitApercu} alt={cat1} className="object-contain w-full h-full group-hover:scale-105 transition-transform duration-300 mix-blend-multiply" />
                 </div>
                 <div className="p-5 flex flex-col flex-grow w-full">
                   <span className="text-lg font-bold text-slate-800 group-hover:text-blue-700 mb-1">{cat1}</span>
@@ -118,11 +235,11 @@ export default function ProduitsPage() {
       {showCat2 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {categories2.map((cat2) => {
-            const imageApercu = trouverPremiereImage(dataCat1[cat2]);
+            const produitApercu = trouverPremierProduit(dataCat1[cat2]);
             return (
               <button key={cat2} onClick={() => setSelectedCat2(cat2)} className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md hover:border-blue-500 transition-all text-left flex flex-col group overflow-hidden">
                 <div className="h-40 bg-slate-50 flex items-center justify-center border-b border-slate-100 p-4 relative w-full overflow-hidden">
-                  {imageApercu ? <img src={imageApercu} alt={cat2} className="object-contain w-full h-full group-hover:scale-105 transition-transform duration-300 mix-blend-multiply" /> : <span className="text-slate-400 text-sm">Image non disponible</span>}
+                  <ImageProduit produit={produitApercu} alt={cat2} className="object-contain w-full h-full group-hover:scale-105 transition-transform duration-300 mix-blend-multiply" />
                 </div>
                 <div className="p-5 flex flex-col flex-grow w-full">
                   <span className="text-md font-bold text-slate-800 group-hover:text-blue-700 mb-1">{cat2}</span>
@@ -137,11 +254,11 @@ export default function ProduitsPage() {
       {showCat3 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {categories3.map((cat3) => {
-            const imageApercu = trouverPremiereImage(dataCat2[cat3]);
+            const produitApercu = trouverPremierProduit(dataCat2[cat3]);
             return (
               <button key={cat3} onClick={() => setSelectedCat3(cat3)} className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md hover:border-blue-500 transition-all text-left flex flex-col group overflow-hidden">
                 <div className="h-40 bg-slate-50 flex items-center justify-center border-b border-slate-100 p-4 relative w-full overflow-hidden">
-                  {imageApercu ? <img src={imageApercu} alt={cat3} className="object-contain w-full h-full group-hover:scale-105 transition-transform duration-300 mix-blend-multiply" /> : <span className="text-slate-400 text-sm">Image non disponible</span>}
+                  <ImageProduit produit={produitApercu} alt={cat3} className="object-contain w-full h-full group-hover:scale-105 transition-transform duration-300 mix-blend-multiply" />
                 </div>
                 <div className="p-5 flex flex-col flex-grow w-full">
                   <span className="text-md font-bold text-slate-800 group-hover:text-blue-700 mb-1">{cat3}</span>
@@ -160,11 +277,10 @@ export default function ProduitsPage() {
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {Object.entries(produitsGroupesParFamille).map(([nomFamille, articles]: [string, any]) => {
-              const premierArticle = articles[0];
               return (
                 <div key={nomFamille} onClick={() => setSelectedFamille(nomFamille)} className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm hover:shadow-md hover:border-blue-500 transition-all cursor-pointer group flex flex-col">
-                  <div className="h-48 bg-slate-50 flex items-center justify-center border-b border-slate-200 relative overflow-hidden">
-                    {premierArticle.image ? <img src={premierArticle.image} alt={nomFamille} className="object-contain w-full h-full p-4 mix-blend-multiply group-hover:scale-105 transition-transform duration-300" /> : <span className="text-slate-400 text-sm">Image non disponible</span>}
+                  <div className="h-48 bg-slate-50 flex items-center justify-center border-b border-slate-200 relative overflow-hidden p-4">
+                    <ImageProduit produit={articles[0]} alt={nomFamille} className="object-contain w-full h-full mix-blend-multiply group-hover:scale-105 transition-transform duration-300" />
                   </div>
                   <div className="p-4 flex flex-col flex-grow">
                     <h3 className="font-bold text-slate-800 mb-2 leading-tight line-clamp-3 group-hover:text-blue-700 transition-colors" title={nomFamille}>{nomFamille}</h3>
@@ -181,23 +297,18 @@ export default function ProduitsPage() {
 
       {selectedFamille && (
         <div className="mt-8 animate-fade-in-up">
-          
           <div className="flex flex-col md:flex-row gap-8 mb-12 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
             <div className="w-full md:w-1/3 flex items-center justify-center bg-white rounded-lg p-4">
-               {imageFamilleSelectionnee ? (
-                  <img src={imageFamilleSelectionnee} alt={selectedFamille} className="object-contain w-full max-h-[300px]" />
-                ) : (
-                  <div className="w-full h-48 bg-slate-100 flex items-center justify-center rounded border border-slate-200">
-                    <span className="text-slate-400">Image non disponible</span>
-                  </div>
-                )}
+               <ImageProduit 
+                  produit={produitsGroupesParFamille[selectedFamille]?.[0]} 
+                  alt={selectedFamille} 
+                  className="object-contain w-full max-h-[300px]" 
+               />
             </div>
             
             <div className="w-full md:w-2/3 flex flex-col justify-center">
               <h2 className="text-3xl md:text-3xl font-bold text-blue-900 mb-6 leading-tight">{selectedFamille}</h2>
-              
               <div className="flex flex-wrap gap-4 items-center mt-4">
-                
                 <a 
                   href={genererLienPDF(selectedFamille)}
                   target="_blank"

@@ -11,6 +11,7 @@ model Client {
   codeClient String   @unique
   email         String?  @unique
   password   String?  // Optionnel : Null tant qu'il ne s'est pas connecté
+  role       String   @default("CLIENT")
   nomEntreprise String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

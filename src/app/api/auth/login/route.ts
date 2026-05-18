@@ -30,21 +30,24 @@ export async function POST(request: Request) {
     const token = await new SignJWT({ 
         sub: client.id, 
         codeClient: client.codeClient,
-        nomEntreprise: client.nomEntreprise 
+        nomEntreprise: client.nomEntreprise,
+        role: client.role
       })
       .setProtectedHeader({ alg: 'HS256' })
       .setExpirationTime('24h')
       .sign(SECRET_KEY);
 
-    const response = NextResponse.json({ message: "Connexion réussie !" }, { status: 200 });
-    
+    const response = NextResponse.json({ 
+      success: true, 
+      client: { id: client.id, codeClient: client.codeClient, role: client.role, nom: client.nomEntreprise }
+    });
+
     response.cookies.set({
-      name: 'etn_session',
+      name: 'token',
       value: token,
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
       path: '/',
+      secure: process.env.NODE_ENV === 'production', // false en local (http), true en ligne (https)
       maxAge: 60 * 60 * 24
     });
 

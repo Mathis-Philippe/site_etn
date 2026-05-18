@@ -1,37 +1,32 @@
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
-import { prisma } from '@/lib/prisma';
 
 const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret');
 
-export async function GET() {
-  const cookieStore = await cookies();
-  const session = cookieStore.get('etn_session');
+export async function GET(request: NextRequest) {
+  // 1. On récupère le token depuis les cookies
+  const token = request.cookies.get('token')?.value;
 
-  if (!session) {
-    return NextResponse.json({ authenticated: false }, { status: 401 });
+  if (!token) {
+    return NextResponse.json({ success: false, authenticated: false }, { status: 401 });
   }
 
   try {
-    const { payload } = await jwtVerify(session.value, SECRET_KEY);
+    // 2. On vérifie le token
+    const verified = await jwtVerify(token, SECRET_KEY);
+    const payload = verified.payload;
 
-    const client = await prisma.client.findUnique({
-      where: { codeClient: payload.codeClient as string }
+    // 3. On renvoie les infos de l'utilisateur au frontend
+    return NextResponse.json({
+      success: true,
+      authenticated: true,
+      client: {
+        id: payload.id,
+        codeClient: payload.codeClient,
+        role: payload.role,
+      }
     });
-
-    if (!client) {
-      return NextResponse.json({ authenticated: false }, { status: 401 });
-    }
-
-    return NextResponse.json({ 
-      authenticated: true, 
-      nomEntreprise: client.nomEntreprise,
-      codeClient: client.codeClient,
-      email: client.email
-    }, { status: 200 });
-
-  } catch (error) {
-    return NextResponse.json({ authenticated: false }, { status: 401 });
+  } catch (err) {
+    return NextResponse.json({ success: false, authenticated: false }, { status: 401 });
   }
 }

@@ -1,0 +1,109 @@
+// app/api/admin/articles/route.ts
+
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { jwtVerify } from 'jose';
+import { writeFile, mkdir } from 'fs/promises';
+import path from 'path';
+
+const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret');
+
+// Vérifie que l'utilisateur est ADMIN
+async function isAdmin(request: NextRequest): Promise<boolean> {
+  const token = request.cookies.get('token')?.value;
+  if (!token) return false;
+  try {
+    const { payload } = await jwtVerify(token, SECRET_KEY);
+    return payload.role === 'ADMIN';
+  } catch {
+    return false;
+  }
+}
+
+// Sauvegarde un fichier uploadé dans /public/images/produits ou /public/pdfs
+async function saveFile(file: File, folder: 'images/produits' | 'pdfs'): Promise<string> {
+  const bytes = await file.arrayBuffer();
+  const buffer = Buffer.from(bytes);
+  const dir = path.join(process.cwd(), 'public', folder);
+  await mkdir(dir, { recursive: true });
+  const filename = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+  const filepath = path.join(dir, filename);
+  await writeFile(filepath, buffer);
+  return `/${folder}/${filename}`;
+}
+
+// GET /api/admin/articles — Liste tous les articles
+export async function GET(request: NextRequest) {
+  if (!(await isAdmin(request))) {
+    return NextResponse.json({ success: false, message: 'Accès refusé.' }, { status: 403 });
+  }
+
+  try {
+    const articles = await prisma.article.findMany({
+      include: {
+        famille: {
+          include: {
+            sousCategorie: {
+              include: { categorie: true }
+            }
+          }
+        }
+      },
+      orderBy: { designation: 'asc' }
+    });
+
+    return NextResponse.json({ success: true, data: articles });
+  } catch (error) {
+    console.error('Erreur GET articles admin:', error);
+    return NextResponse.json({ success: false, message: 'Erreur serveur.' }, { status: 500 });
+  }
+}
+
+// POST /api/admin/articles — Créer un article
+export async function POST(request: NextRequest) {
+  if (!(await isAdmin(request))) {
+    return NextResponse.json({ success: false, message: 'Accès refusé.' }, { status: 403 });
+  }
+
+  try {
+    const formData = await request.formData();
+    const refDicsa = formData.get('refDicsa') as string;
+    const refEtn = formData.get('refEtn') as string;
+    const designation = formData.get('designation') as string;
+    const familleOriginale = formData.get('familleOriginale') as string;
+    const familleId = formData.get('familleId') as string;
+    const imageFile = formData.get('image') as File | null;
+    const pdfFile = formData.get('pdf') as File | null;
+
+    if (!designation || !refEtn) {
+      return NextResponse.json({ success: false, message: 'Désignation et référence ETN obligatoires.' }, { status: 400 });
+    }
+
+    let imageUrl: string | undefined;
+    let pdfUrl: string | undefined;
+
+    if (imageFile && imageFile.size > 0) {
+      imageUrl = await saveFile(imageFile, 'images/produits');
+    }
+    if (pdfFile && pdfFile.size > 0) {
+      pdfUrl = await saveFile(pdfFile, 'pdfs');
+    }
+
+    const article = await prisma.article.create({
+      data: {
+        refDicsa: refDicsa || '',
+        refEtn,
+        designation,
+        familleOriginale: familleOriginale || null,
+        imageUrl: imageUrl || null,
+        // pdfUrl: pdfUrl || null, // Décommenter si vous avez ce champ dans votre schéma Prisma
+        ...(familleId ? { familleId } : {}),
+      }
+    });
+
+    return NextResponse.json({ success: true, data: article });
+  } catch (error) {
+    console.error('Erreur POST article:', error);
+    return NextResponse.json({ success: false, message: 'Erreur lors de la création.' }, { status: 500 });
+  }
+}

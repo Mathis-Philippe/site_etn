@@ -12,20 +12,22 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // 2. On vérifie le token
     const verified = await jwtVerify(token, SECRET_KEY);
     const payload = verified.payload;
 
-    // 3. On renvoie les infos de l'utilisateur au frontend
     return NextResponse.json({
       success: true,
       authenticated: true,
+      nomEntreprise: payload.nomEntreprise,
+      role: payload.role,                 
       client: {
         id: payload.id,
         codeClient: payload.codeClient,
         role: payload.role,
+        nomEntreprise: payload.nomEntreprise,
       }
     });
+
   } catch (err) {
     return NextResponse.json({ success: false, authenticated: false }, { status: 401 });
   }

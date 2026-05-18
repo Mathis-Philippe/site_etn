@@ -1,28 +1,34 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+// middleware.ts (à la racine du projet, à côté de next.config.ts)
+
+import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 
 const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret');
 
 export async function middleware(request: NextRequest) {
-  const token = request.cookies.get('token')?.value;
   const { pathname } = request.nextUrl;
 
-  if (pathname.startsWith('/admin')) {
-    
+  // Protéger toutes les routes /admin et /api/admin
+  if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
+    const token = request.cookies.get('token')?.value;
+
     if (!token) {
+      // Pas de token → redirection vers connexion
       return NextResponse.redirect(new URL('/connexion', request.url));
     }
 
     try {
-      const verified = await jwtVerify(token, SECRET_KEY);
+      const { payload } = await jwtVerify(token, SECRET_KEY);
 
-      if (verified.payload.role !== 'ADMIN') {
-        return NextResponse.redirect(new URL('/', request.url)); 
+      if (payload.role !== 'ADMIN') {
+        // Connecté mais pas admin → redirection vers accueil
+        return NextResponse.redirect(new URL('/', request.url));
       }
-      
-      
-    } catch (err) {
+
+      // Admin confirmé → on laisse passer
+      return NextResponse.next();
+    } catch {
+      // Token invalide ou expiré
       return NextResponse.redirect(new URL('/connexion', request.url));
     }
   }
@@ -31,5 +37,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*'],
+  matcher: ['/admin/:path*', '/api/admin/:path*'],
 };

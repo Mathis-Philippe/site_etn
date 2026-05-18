@@ -5,12 +5,17 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import { FaFacebook, FaLinkedin, FaUserCircle, FaTimes } from "react-icons/fa";
-import { MdEmail, MdAccountCircle, MdLogout, MdShoppingBasket, MdOutlinePersonOutline } from "react-icons/md";
+import { MdEmail, MdAccountCircle, MdLogout, MdShoppingBasket, MdOutlinePersonOutline, MdAdminPanelSettings } from "react-icons/md";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
-  const [userData, setUserData] = useState<{ authenticated: boolean; nomEntreprise?: string } | null>(null);
+  // Ajout de 'role' dans le typage
+  const [userData, setUserData] = useState<{ 
+    authenticated: boolean; 
+    nomEntreprise?: string;
+    role?: string;        
+  } | null>(null);
   
   const pathname = usePathname();
 
@@ -18,6 +23,7 @@ export default function Header() {
     try {
       const res = await fetch("/api/auth/check");
       const data = await res.json();
+      // Assure-toi que ton API renvoie bien le 'role' dans data s'il est admin
       setUserData(data.authenticated ? data : { authenticated: false });
     } catch {
       setUserData({ authenticated: false });
@@ -125,6 +131,12 @@ export default function Header() {
                   <Link href="/compte" className="flex items-center p-3 hover:bg-gray-50 rounded-md font-medium" onClick={() => setIsAccountOpen(false)}>
                     <MdOutlinePersonOutline className="mr-3 w-5 h-5 text-gray-400" /> Mon Espace ETN
                   </Link>
+
+                  {userData.role === "ADMIN" && (
+                    <Link href="/admin" className="flex items-center p-3 hover:bg-red-50 text-red-600 rounded-md font-bold mt-4" onClick={() => setIsAccountOpen(false)}>
+                      <MdAdminPanelSettings className="mr-3 w-5 h-5 text-red-600" /> Administration
+                    </Link>
+                  )}
                 </nav>
                 
                 <button onClick={handleLogout} className="mt-auto flex items-center justify-center w-full py-3 border-2 border-red-100 text-red-600 font-bold rounded-lg hover:bg-red-50">

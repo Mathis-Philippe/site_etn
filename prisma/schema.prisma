@@ -23,3 +23,52 @@ model ResetToken {
   expires   DateTime
   createdAt DateTime @default(now())
 }
+
+
+model Categorie {
+  id             String          @id @default(cuid())
+  nom            String          @unique
+  sousCategories SousCategorie[]
+}
+
+model SousCategorie {
+  id          String    @id @default(cuid())
+  nom         String
+  
+  categorieId String
+  categorie   Categorie @relation(fields: [categorieId], references: [id], onDelete: Cascade)
+  
+  familles    Famille[]
+
+  @@unique([nom, categorieId]) // Empêche les doublons dans une même catégorie
+}
+
+model Famille {
+  id              String        @id @default(cuid())
+  nom             String
+  
+  sousCategorieId String
+  sousCategorie   SousCategorie @relation(fields: [sousCategorieId], references: [id], onDelete: Cascade)
+  
+  articles        Article[]
+
+  @@unique([nom, sousCategorieId])
+}
+
+model Article {
+  id          String   @id @default(cuid())
+  refDicsa    String   @unique
+  refEtn      String?  // Optionnel car tous ne l'ont peut-être pas
+  designation String
+
+  // Champs pour tes médias (on stockera juste les liens web sous forme de texte)
+  imageUrl    String?  
+  pdfUrl      String?  
+
+  // Relation vers la famille
+  familleId   String
+  famille     Famille  @relation(fields: [familleId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

@@ -70,7 +70,6 @@ export async function PUT(
   try {
     const { id } = await params;
     const formData = await request.formData();
-    const refDicsa = formData.get('refDicsa') as string;
     const refEtn = formData.get('refEtn') as string;
     const designation = formData.get('designation') as string;
     const familleOriginale = formData.get('familleOriginale') as string;
@@ -80,7 +79,6 @@ export async function PUT(
     const existingImageUrl = formData.get('existingImageUrl') as string | null;
 
     const updateData: any = {
-      refDicsa: refDicsa || '',
       refEtn,
       designation,
       familleOriginale: familleOriginale || null,
@@ -100,18 +98,20 @@ export async function PUT(
     }
 
     const article = await prisma.article.update({
-      where: { id },
-      data: updateData,
-      include: {
-        famille: {
-          include: {
-            sousCategorie: {
-              include: { categorie: true }
+    where: { id },
+    data: updateData,
+    include: {
+      famille: {
+        include: {
+          sousCategorie: {
+            include: { 
+              categorie: true 
             }
           }
         }
       }
-    });
+    }
+  });
 
     return NextResponse.json({ success: true, data: article });
   } catch (error) {

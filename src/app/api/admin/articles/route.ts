@@ -133,14 +133,11 @@ export async function POST(request: NextRequest) {
     }
 
     const article = await prisma.article.create({
-      data: {
-        refDicsa: refDicsa || '',
-        refEtn,
-        designation,
+    data: {
+        refEtn: refEtn.trim(),
+        designation: designation.trim(),
         familleOriginale: familleOriginale || null,
-        imageUrl: imageUrl || null,
-        pdfUrl: pdfUrl || null,
-        ...(familleId ? { familleId } : {}),
+        familleId: familleId,
       },
       include: {
         famille: {

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { useCart } from '@/context/CartContext';
 
 const ImageProduit = ({ produit, alt, className }: { produit: any, alt: string, className: string }) => {
   const [srcIndex, setSrcIndex] = useState(0);
@@ -39,24 +40,19 @@ const ImageProduit = ({ produit, alt, className }: { produit: any, alt: string, 
 
 // 2. Trouver le premier produit pour l'aperçu
 const trouverPremierProduit = (noeud: any): any | null => {
-  // Sécurité : Si ce n'est pas un objet ou si c'est null, on s'arrête
   if (!noeud || typeof noeud !== 'object') return null;
 
-  // Si c'est directement un tableau d'articles
   if (Array.isArray(noeud)) {
     return noeud.find((p: any) => p && (p.imageUrl || p.ref_dicsa)) || null;
   }
 
-  // Si l'objet contient une clé _produits
   if (noeud._produits && Array.isArray(noeud._produits)) {
     return noeud._produits.find((p: any) => p && (p.imageUrl || p.ref_dicsa)) || null;
   }
 
-  // Parcours récursif des sous-clés
   for (const cle of Object.keys(noeud)) {
     if (cle === '_produits') continue;
     
-    // Sécurité supplémentaire : on ne plonge que si la sous-clé est elle-même un objet/tableau
     if (noeud[cle] && typeof noeud[cle] === 'object') {
       const produitTrouve = trouverPremierProduit(noeud[cle]);
       if (produitTrouve) return produitTrouve;
@@ -66,7 +62,7 @@ const trouverPremierProduit = (noeud: any): any | null => {
   return null;
 };
 
-// 3. Adaptateur Prisma (ajoute les clés parentes aux articles pour pouvoir les retrouver)
+// 3. Adaptateur Prisma
 const adapterDonneesPrisma = (categoriesDb: any[]) => {
   const catalogueStructure: any = {};
 
@@ -84,7 +80,6 @@ const adapterDonneesPrisma = (categoriesDb: any[]) => {
               designation: art.designation,
               imageUrl: art.imageUrl,
               famille: art.familleOriginale || null,
-              // Métadonnées indispensables pour la redirection
               c1: cat.nom,
               c2: subCat.nom,
               c3: null
@@ -136,6 +131,7 @@ const adapterDonneesPrisma = (categoriesDb: any[]) => {
 };
 
 export default function ProduitsPage() {
+  const { ajouterAuPanier, nombreArticlesTotal } = useCart(); // 🌟 NOUVEAU
   const [catalogueData, setCatalogueData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [inputValue, setInputValue] = useState<string>('');
@@ -146,6 +142,10 @@ export default function ProduitsPage() {
   const [selectedCat3, setSelectedCat3] = useState<string | null>(null);
   const [selectedFamille, setSelectedFamille] = useState<string | null>(null);
 
+  // 🌟 NOUVEAU : Gérer les inputs de quantité par produit (ex: { "REF-ETN-123": 1 })
+  const [quantitesInput, setQuantitesInput] = useState<Record<string, number>>({});
+  // État visuel pour dire "Ajouté !" brièvement
+  const [statutAjout, setStatutAjout] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     async function fetchCatalogue() {
@@ -170,19 +170,18 @@ export default function ProduitsPage() {
   }, [selectedCat1, selectedCat2, selectedCat3, selectedFamille]);
 
   useEffect(() => {
-  const resetPage = () => {
-    setInputValue('');
-    setSearchQuery('');
-    setSelectedCat1(null);
-    setSelectedCat2(null);
-    setSelectedCat3(null);
-    setSelectedFamille(null);
-  };
+    const resetPage = () => {
+      setInputValue('');
+      setSearchQuery('');
+      setSelectedCat1(null);
+      setSelectedCat2(null);
+      setSelectedCat3(null);
+      setSelectedFamille(null);
+    };
 
-  window.addEventListener('reset-produits-page', resetPage);
-  return () => window.removeEventListener('reset-produits-page', resetPage);
-  }, 
-  []);
+    window.addEventListener('reset-produits-page', resetPage);
+    return () => window.removeEventListener('reset-produits-page', resetPage);
+  }, []);
 
   useEffect(() => {
     const minuterie = setTimeout(() => {
@@ -219,7 +218,6 @@ export default function ProduitsPage() {
     return deDuplicated;
   }, [catalogueData]);
 
-  // Filtrage intelligent
   const articlesFiltrés = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const query = searchQuery.toLowerCase().trim();
@@ -251,6 +249,30 @@ export default function ProduitsPage() {
     setSearchQuery(''); 
   };
 
+  // 🌟 NOUVEAU : Fonction de gestion d'ajout au panier
+  const handleAjouterClick = (produit: any) => {
+    const qte = quantitesInput[produit.ref_etn] || 1; // 1 par défaut si l'input est vide ou à 0
+    if (qte <= 0) return;
+
+    ajouterAuPanier({
+      ref_etn: produit.ref_etn || 'sans-ref',
+      ref_dicsa: produit.ref_dicsa || '',
+      designation: produit.designation,
+      imageUrl: produit.imageUrl
+    }, qte);
+
+    // Déclencher l'animation visuelle de succès
+    setStatutAjout(prev => ({ ...prev, [produit.ref_etn]: true }));
+    setTimeout(() => {
+      setStatutAjout(prev => ({ ...prev, [produit.ref_etn]: false }));
+    }, 1500);
+  };
+
+  const changeQuantiteInput = (ref_etn: string, val: string) => {
+    const num = parseInt(val) || 0;
+    setQuantitesInput(prev => ({ ...prev, [ref_etn]: num }));
+  };
+
   if (loading || !catalogueData) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-7xl min-h-screen flex flex-col items-center justify-center">
@@ -274,7 +296,6 @@ export default function ProduitsPage() {
 
   const isSearching = searchQuery.trim() !== '';
 
-  // La navigation classique fonctionne à nouveau normalement, non cassée par la saisie
   if (!selectedCat1) {
     showCat1 = true;
   } else if (!selectedCat2) {
@@ -309,7 +330,18 @@ export default function ProduitsPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl min-h-screen">
+    <div className="container mx-auto px-4 py-8 max-w-7xl min-h-screen relative">
+      
+      {/* Flottant Panier d'aperçu rapide si des articles sont présents */}
+      {nombreArticlesTotal > 0 && (
+        <div className="fixed bottom-6 right-6 bg-blue-800 text-white px-5 py-3 rounded-full shadow-2xl flex items-center gap-3 z-50 animate-bounce">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+          </svg>
+          <span className="font-bold">{nombreArticlesTotal} article(s) dans le panier</span>
+        </div>
+      )}
+
       <h1 className="text-4xl font-bold mb-6 text-slate-800">Nos Produits</h1>
 
       <div className="mb-8 max-w-2xl relative">
@@ -345,30 +377,56 @@ export default function ProduitsPage() {
                       <th className="py-4 px-6 border-r border-blue-700/50">Visuel</th>
                       <th className="py-4 px-6 border-r border-blue-700/50">Référence ETN</th>
                       <th className="py-4 px-6 border-r border-blue-700/50">Référence DICSA</th>
-                      <th className="py-4 px-6">Désignation</th>
+                      <th className="py-4 px-6 border-r border-gray-200">Désignation</th>
+                      <th className="py-4 px-6 border-r border-gray-200 text-center w-28">Quantité</th>
+                      <th className="py-4 px-6 text-center w-28">Ajout</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
                     {articlesFiltrés.map((produit: any, idx: number) => (
-                      <tr 
-                        key={idx} 
-                        onClick={() => allerAFamilleArticle(produit)}
-                        className="hover:bg-blue-50 cursor-pointer transition-colors group"
-                      >
-                        <td className="py-2 px-4 border-r border-slate-100 w-20 h-16">
+                      <tr key={idx} className="hover:bg-blue-50/30 transition-colors group">
+                        <td onClick={() => allerAFamilleArticle(produit)} className="py-2 px-4 border-r border-slate-100 w-20 h-16 cursor-pointer">
                           <div className="w-12 h-12 bg-slate-50 rounded flex items-center justify-center p-1">
                             <ImageProduit produit={produit} alt={produit.designation} className="object-contain w-full h-full mix-blend-multiply" />
                           </div>
                         </td>
-                        <td className="py-4 px-6 font-semibold text-blue-700 group-hover:underline">
+                        <td onClick={() => allerAFamilleArticle(produit)} className="py-4 px-6 font-semibold text-blue-700 group-hover:underline cursor-pointer">
                           {produit.ref_etn || '-'}
                         </td>
-                        <td className="py-4 px-6 text-sm text-slate-600">
+                        <td onClick={() => allerAFamilleArticle(produit)} className="py-4 px-6 text-sm text-slate-600 cursor-pointer">
                           {produit.ref_dicsa || '-'}
                         </td>
-                        <td className="py-4 px-6 text-sm text-slate-700">
+                        <td onClick={() => allerAFamilleArticle(produit)} className="py-4 px-6 text-sm text-slate-700 cursor-pointer border-r border-gray-100">
                           <div className="font-medium text-slate-900">{produit.designation}</div>
                           {produit.famille && <span className="text-xs text-slate-400">Famille : {produit.famille}</span>}
+                        </td>
+                        <td className="py-4 px-6 text-center border-r border-gray-100">
+                          <input 
+                            type="number" 
+                            min="1" 
+                            value={quantitesInput[produit.ref_etn] !== undefined ? quantitesInput[produit.ref_etn] : 1} 
+                            onChange={(e) => changeQuantiteInput(produit.ref_etn, e.target.value)}
+                            className="w-20 border border-slate-300 rounded-lg p-1.5 text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
+                          />
+                        </td>
+                        <td className="py-4 px-6 text-center">
+                          <button 
+                            onClick={() => handleAjouterClick(produit)}
+                            className={`transition-all p-2 rounded-full shadow-sm flex items-center justify-center mx-auto ${
+                              statutAjout[produit.ref_etn] 
+                                ? 'bg-green-600 text-white scale-110' 
+                                : 'text-slate-600 hover:text-blue-800 hover:bg-slate-100 bg-white'
+                            }`}
+                            title="Ajouter au panier"
+                          >
+                            {statutAjout[produit.ref_etn] ? (
+                              <span className="text-xs font-bold px-1">✓</span>
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+                              </svg>
+                            )}
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -383,7 +441,6 @@ export default function ProduitsPage() {
           )}
         </div>
       ) : (
-        /* Affichage de la Navigation standard (uniquement si pas de recherche active) */
         <>
           <nav className="mb-8 flex flex-wrap items-center gap-2 text-sm text-slate-500">
             <button onClick={handleBackToCat1} className="hover:text-blue-600 transition-colors">Accueil</button>
@@ -517,27 +574,45 @@ export default function ProduitsPage() {
                       <tr className="bg-blue-800 text-white text-xs uppercase tracking-wider font-bold border-b-2 border-yellow-500">
                         <th className="py-4 px-6 border-r border-blue-700/50">Références</th>
                         <th className="py-4 px-6 border-r border-blue-700/50">Désignation</th>
-                        <th className="py-4 px-6 border-r border-blue-700/50 text-center">Quantité</th>
-                        <th className="py-4 px-6 text-center">Ajout</th>
+                        <th className="py-4 px-6 border-r border-gray-200 text-center w-28">Quantité</th>
+                        <th className="py-4 px-6 text-center w-28">Ajout</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
                       {produitsGroupesParFamille[selectedFamille]?.map((produit: any, idx: number) => (
                         <tr key={idx} className="hover:bg-blue-50/50 transition-colors group">
-                          <td className="py-4 px-6 font-semibold text-blue-700 underline hover:text-blue-900 cursor-pointer">
+                          <td className="py-4 px-6 font-semibold text-blue-700">
                             {produit.ref_etn || '-'}
                           </td>
                           <td className="py-4 px-6 text-sm text-slate-700">
                             {produit.designation}
                           </td>
-                          <td className="py-4 px-6 text-center">
-                            <input type="number" min="0" defaultValue="0" className="w-20 border border-slate-300 rounded p-2 text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow" />
+                          <td className="py-4 px-6 text-center border-r border-gray-100">
+                            <input 
+                              type="number" 
+                              min="1" 
+                              value={quantitesInput[produit.ref_etn] !== undefined ? quantitesInput[produit.ref_etn] : 1}
+                              onChange={(e) => changeQuantiteInput(produit.ref_etn, e.target.value)}
+                              className="w-20 border border-slate-300 rounded-lg p-1.5 text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
+                            />
                           </td>
                           <td className="py-4 px-6 text-center">
-                            <button className="text-slate-500 hover:text-blue-800 transition-colors p-2 hover:bg-white rounded-full shadow-sm opacity-75 group-hover:opacity-100">
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6 inline-block">
-                                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
-                              </svg>
+                            <button 
+                              onClick={() => handleAjouterClick(produit)}
+                              className={`transition-all p-2 rounded-full shadow-sm flex items-center justify-center mx-auto ${
+                                statutAjout[produit.ref_etn] 
+                                  ? 'bg-green-600 text-white scale-110' 
+                                  : 'text-slate-500 hover:text-blue-800 hover:bg-white bg-slate-100'
+                              }`}
+                              title="Ajouter au panier"
+                            >
+                              {statutAjout[produit.ref_etn] ? (
+                                <span className="text-xs font-bold px-1">✓</span>
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                   <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+                                </svg>
+                              )}
                             </button>
                           </td>
                         </tr>

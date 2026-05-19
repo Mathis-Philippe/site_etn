@@ -58,7 +58,6 @@ model Famille {
 
 model Article {
   id          String   @id @default(cuid())
-  refDicsa    String   @unique
   refEtn      String?
   designation String
   familleOriginale String?

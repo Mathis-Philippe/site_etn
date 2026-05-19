@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
-import { FaFacebook, FaLinkedin, FaUserCircle, FaTimes } from "react-icons/fa";
+import { FaFacebook, FaLinkedin, FaUserCircle, FaTimes, FaShoppingCart } from "react-icons/fa";
 import { MdEmail, MdAccountCircle, MdLogout, MdShoppingBasket, MdOutlinePersonOutline, MdAdminPanelSettings } from "react-icons/md";
+import { useCart } from "@/context/CartContext"; // 🌟 Import du panier
 
 export default function Header() {
+  const { nombreArticlesTotal } = useCart(); // 🌟 Récupération du compteur de panier
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
-  // Ajout de 'role' dans le typage
   const [userData, setUserData] = useState<{ 
     authenticated: boolean; 
     nomEntreprise?: string;
@@ -23,7 +24,6 @@ export default function Header() {
     try {
       const res = await fetch("/api/auth/check");
       const data = await res.json();
-      // Assure-toi que ton API renvoie bien le 'role' dans data s'il est admin
       setUserData(data.authenticated ? data : { authenticated: false });
     } catch {
       setUserData({ authenticated: false });
@@ -70,15 +70,32 @@ export default function Header() {
                 <Link 
                   href="/produits" 
                   onClick={() => {
-                  window.dispatchEvent(new Event('reset-produits-page'));
+                    window.dispatchEvent(new Event('reset-produits-page'));
                   }}
-                  className="text-blue-700 font-bold border-b-2 border-blue-700">Produits
+                  className="hover:text-blue-700 transition-colors">Produits
                 </Link>
               )}
               <Link href="/contact" className="hover:text-blue-700 transition-colors">Contact</Link>
             </nav>
 
             <div className="flex items-center space-x-5 border-l pl-8 border-gray-200">
+              
+              {/* 🌟 NOUVEAU : Icône Panier (Visible uniquement si connecté) */}
+              {userData?.authenticated && (
+                <Link 
+                  href="/compte?tab=panier" 
+                  className="relative p-2 text-gray-700 hover:text-blue-700 transition-colors"
+                  title="Voir mon panier"
+                >
+                  <FaShoppingCart className="w-6 h-6" />
+                  {nombreArticlesTotal > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold h-5 w-5 rounded-full flex items-center justify-center border-2 border-white animate-pulse">
+                      {nombreArticlesTotal}
+                    </span>
+                  )}
+                </Link>
+              )}
+
               <button 
                 onClick={() => setIsAccountOpen(true)}
                 className="flex items-center text-gray-700 hover:text-blue-700 transition-colors group"
@@ -105,7 +122,10 @@ export default function Header() {
                 <Link href="/" className="text-gray-700 font-medium hover:text-blue-700 uppercase text-sm" onClick={() => setIsMenuOpen(false)}>Accueil</Link>
                 <Link href="/about" className="text-gray-700 font-medium hover:text-blue-700 uppercase text-sm" onClick={() => setIsMenuOpen(false)}>À propos</Link>
                 {userData?.authenticated && (
-                  <Link href="/produits" className="text-blue-700 font-bold uppercase text-sm border-l-4 border-blue-700 pl-2" onClick={() => setIsMenuOpen(false)}>Catalogue Produits</Link>
+                  <>
+                    <Link href="/produits" className="text-gray-700 font-medium hover:text-blue-700 uppercase text-sm" onClick={() => setIsMenuOpen(false)}>Produits</Link>
+                    <Link href="/compte?tab=panier" className="text-blue-700 font-bold uppercase text-sm" onClick={() => setIsMenuOpen(false)}>Mon Panier ({nombreArticlesTotal})</Link>
+                  </>
                 )}
                 <Link href="/contact" className="text-gray-700 font-medium hover:text-blue-700 uppercase text-sm" onClick={() => setIsMenuOpen(false)}>Contact</Link>
               </div>
@@ -136,6 +156,11 @@ export default function Header() {
 
                   <Link href="/compte" className="flex items-center p-3 hover:bg-gray-50 rounded-md font-medium" onClick={() => setIsAccountOpen(false)}>
                     <MdOutlinePersonOutline className="mr-3 w-5 h-5 text-gray-400" /> Mon Espace ETN
+                  </Link>
+                  
+                  {/* 🌟 Lien Direct vers le panier dans le tiroir */}
+                  <Link href="/compte?tab=panier" className="flex items-center p-3 hover:bg-gray-50 rounded-md font-medium text-blue-700" onClick={() => setIsAccountOpen(false)}>
+                    <FaShoppingCart className="mr-3 w-5 h-5 text-blue-700" /> Mon Panier ({nombreArticlesTotal})
                   </Link>
 
                   {userData.role === "ADMIN" && (

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { 
   FaChartLine, 
   FaBoxOpen, 
@@ -10,8 +11,11 @@ import {
   FaSignOutAlt, 
   FaEye, 
   FaFilePdf,
-  FaCheckCircle
+  FaCheckCircle,
+  FaShoppingCart,
+  FaTrashAlt
 } from "react-icons/fa";
+import { useCart } from "@/context/CartContext"; // 🌟 Import du panier
 
 const mockCommandes = [
   { id: "1978087", ref: "EXPRESS 70752", date: "09/04/2026", montant: "465,75 €", statut: "En préparation" },
@@ -24,10 +28,18 @@ const mockFactures = [
   { id: "F-2026-0985", commandeId: "1975002", date: "03/04/2026", montant: "1250,00 €", statut: "En attente" },
 ];
 
-export default function MonComptePage() {
+function MonCompteContent() {
+  const { cart, modifierQuantite, supprimerDuPanier, viderLePanier } = useCart(); // 🌟 Hooks du Panier
   const [activeTab, setActiveTab] = useState("dashboard");
   const [userData, setUserData] = useState<{ nomEntreprise?: string, email?: string, codeClient?: string } | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Écouter si un onglet spécifique est demandé dans l'URL (ex: ?tab=panier)
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab) setActiveTab(tab);
+  }, [searchParams]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -58,7 +70,11 @@ export default function MonComptePage() {
 
   const SidebarIcon = ({ icon: Icon, tabName, tooltip }: { icon: any, tabName: string, tooltip: string }) => (
     <button
-      onClick={() => setActiveTab(tabName)}
+      onClick={() => {
+        // Nettoyer l'URL brute quand on clique manuellement sur la sidebar
+        router.push("/compte");
+        setActiveTab(tabName);
+      }}
       className={`relative group w-full py-4 flex justify-center border-l-4 transition-colors ${
         activeTab === tabName 
           ? "border-yellow-400 bg-blue-900 text-white" 
@@ -78,6 +94,7 @@ export default function MonComptePage() {
       <div className="w-16 bg-[#00183A] flex flex-col items-center pb-1 shadow-xl z-20 flex-shrink-0">
         <div className="flex-1 w-full flex flex-col space-y-2 mt-4">
           <SidebarIcon icon={FaChartLine} tabName="dashboard" tooltip="Tableau de bord" />
+          <SidebarIcon icon={FaShoppingCart} tabName="panier" tooltip="Mon Panier" /> {/* 🌟 Onglet Panier */}
           <SidebarIcon icon={FaBoxOpen} tabName="commandes" tooltip="Mes Commandes" />
           <SidebarIcon icon={FaFileInvoiceDollar} tabName="factures" tooltip="Mes Factures" />
           <SidebarIcon icon={FaUserCircle} tabName="infos" tooltip="Mes Informations" />
@@ -98,6 +115,7 @@ export default function MonComptePage() {
         <div className="bg-[#9ca3af] px-8 py-4 shadow-sm z-10">
           <h1 className="text-2xl font-bold text-white uppercase tracking-wider">
             {activeTab === 'dashboard' && 'Espace Client'}
+            {activeTab === 'panier' && 'Votre Panier Actuel'}
             {activeTab === 'commandes' && 'Historique des Commandes'}
             {activeTab === 'factures' && 'Historique des Factures'}
             {activeTab === 'infos' && 'Fiche Client'}
@@ -172,6 +190,97 @@ export default function MonComptePage() {
                   </table>
                 </div>
               </div>
+            </div>
+          )}
+
+          {activeTab === "panier" && (
+            <div className="bg-white rounded-md shadow-sm border border-gray-200 overflow-hidden max-w-6xl mx-auto p-6">
+              {cart && cart.length > 0 ? (
+                <div>
+                  <div className="overflow-x-auto mb-6">
+                    <table className="w-full text-sm text-left border-collapse">
+                      <thead className="text-xs text-white uppercase bg-[#00183A]">
+                        <tr>
+                          <th className="px-6 py-4 font-semibold">Visuel</th>
+                          <th className="px-6 py-4 font-semibold">Référence ETN</th>
+                          <th className="px-6 py-4 font-semibold">Désignation</th>
+                          <th className="px-6 py-4 font-semibold text-center w-32">Quantité</th>
+                          <th className="px-6 py-4 font-semibold text-center w-24">Supprimer</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {cart.map((item) => (
+                          <tr key={item.ref_etn} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-6 py-3 w-20">
+                              <div className="w-12 h-12 bg-gray-50 rounded p-1 flex items-center justify-center border">
+                                {item.imageUrl ? (
+                                  <img src={item.imageUrl} alt={item.designation} className="object-contain max-h-full max-w-full" />
+                                ) : (
+                                  <span className="text-[10px] text-gray-400 text-center">No Img</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 font-mono font-semibold text-blue-900">{item.ref_etn}</td>
+                            <td className="px-6 py-4 text-gray-800 font-medium">{item.designation}</td>
+                            <td className="px-6 py-4 text-center">
+                              <input 
+                                type="number" 
+                                min="1" 
+                                value={item.quantite || 1} 
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value) || 1;
+                                  modifierQuantite(item.ref_etn, val);
+                                }}
+                                className="w-20 text-center border border-gray-300 rounded-lg p-1.5 focus:ring-2 focus:ring-blue-800 outline-none"
+                              />
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <button 
+                                onClick={() => supprimerDuPanier(item.ref_etn)}
+                                className="text-gray-400 hover:text-red-600 p-2 rounded-full hover:bg-gray-100 transition-all inline-block"
+                                title="Supprimer l'article"
+                              >
+                                <FaTrashAlt className="w-4 h-4 mx-auto" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-4 justify-between items-center border-t pt-6">
+                    <button 
+                      onClick={() => viderLePanier()}
+                      className="px-5 py-2.5 border border-red-200 text-red-600 hover:bg-red-50 font-semibold rounded-lg transition-colors text-sm"
+                    >
+                      Vider entièrement le panier
+                    </button>
+                    
+                    <button 
+                      onClick={() => alert("Fonctionnalité d'envoi de commande en cours de liaison...")}
+                      className="px-8 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-md transition-colors uppercase text-sm tracking-wider"
+                    >
+                      Valider et Envoyer la Demande Pro →
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <FaShoppingCart className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500 text-lg mb-4">Votre panier est actuellement vide.</p>
+                  
+                  <Link 
+                    href="/produits" 
+                    onClick={() => {
+                      window.dispatchEvent(new Event('reset-produits-page'));
+                    }}
+                    className="inline-block px-6 py-2.5 bg-[#00183A] text-white font-bold rounded-lg hover:bg-blue-900 transition-colors text-sm"
+                  >
+                    Parcourir le catalogue produits
+                  </Link>
+                </div>
+              )}
             </div>
           )}
 
@@ -277,5 +386,14 @@ export default function MonComptePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Next.js exige d'envelopper useSearchParams dans un Suspense pour le build statique/SSR
+export default function MonComptePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50">Chargement de votre espace pro...</div>}>
+      <MonCompteContent />
+    </Suspense>
   );
 }

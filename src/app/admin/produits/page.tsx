@@ -1,7 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { MdAdd, MdEdit, MdDelete, MdSearch, MdUpload, MdClose, MdSave, MdPictureAsPdf, MdImage, MdFilterList } from 'react-icons/md';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import {
+  MdAdd, MdEdit, MdDelete, MdSearch, MdUpload, MdClose, MdSave,
+  MdPictureAsPdf, MdImage, MdFilterList, MdArrowUpward, MdUnfoldMore
+} from 'react-icons/md';
 
 type Article = {
   id: string;
@@ -9,34 +12,24 @@ type Article = {
   refEtn: string;
   designation: string;
   imageUrl?: string;
+  pdfUrl?: string;
   familleOriginale?: string;
-  famille?: { nom: string };
-  sousCategorie?: { nom: string; categorie?: { nom: string } };
+  famille?: { id: string; nom: string; sousCategorie?: { id: string; nom: string; categorie?: { id: string; nom: string } } };
 };
 
 type ModalMode = 'add' | 'edit' | null;
 
 export default function AdminProduitsPage() {
+  // ===== STATE =====
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
   const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
-  const [categories, setCategories] = useState<any[]>([]);
-  const [selectedCatId, setSelectedCatId] = useState('');
-  const [selectedSousCatId, setSelectedSousCatId] = useState('');
-  const [selectedFamilleId, setSelectedFamilleId] = useState('');
-
-  const imageInputRef = useRef<HTMLInputElement>(null);
-  const pdfInputRef = useRef<HTMLInputElement>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [pdfFile, setPdfFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string>('');
-
+  // Formulaire
   const [form, setForm] = useState({
     refDicsa: '',
     refEtn: '',
@@ -45,38 +38,129 @@ export default function AdminProduitsPage() {
     familleId: '',
   });
 
+  // Fichiers
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+
+  // Catégories
+  const [categories, setCategories] = useState<any[]>([]);
+  const [selectedCatId, setSelectedCatId] = useState('');
+  const [selectedSousCatId, setSelectedSousCatId] = useState('');
+  const [selectedFamilleId, setSelectedFamilleId] = useState('');
+
+  // Recherche et filtres
+  const [search, setSearch] = useState('');
+  const [filterFamilleId, setFilterFamilleId] = useState('');
+  const [sortBy, setSortBy] = useState('designation');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  // Pagination
+  const [skip, setSkip] = useState(0);
+  const [total, setTotal] = useState(0);
+  const TAKE = 50;
+  const hasMore = skip + TAKE < total;
+
+  // Scroll to top ref
+  const pageTopRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  // Debounce search
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [search]);
+
+  // Détecter le scroll pour afficher le bouton
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 200);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Récalculer les sous-catégories et familles
+  const sousCats = useMemo(
+    () => categories.find(c => c.id === selectedCatId)?.sousCategories || [],
+    [selectedCatId, categories]
+  );
+
+  const familles = useMemo(
+    () => sousCats.find(s => s.id === selectedSousCatId)?.familles || [],
+    [selectedSousCatId, sousCats]
+  );
+
+  // ===== NOTIFICATIONS =====
   const notify = (type: 'success' | 'error', msg: string) => {
     setNotification({ type, msg });
     setTimeout(() => setNotification(null), 3500);
   };
 
-  const fetchArticles = async () => {
+  // ===== FETCH DONNÉES =====
+  const fetchArticles = useCallback(async (currentSkip = 0) => {
     try {
       setLoading(true);
-      const res = await fetch('/api/admin/articles');
+      const params = new URLSearchParams({
+        skip: currentSkip.toString(),
+        take: TAKE.toString(),
+        search: debouncedSearch,
+        sortBy,
+        sortOrder,
+        ...(filterFamilleId && { familleId: filterFamilleId }),
+      });
+
+      const res = await fetch(`/api/admin/articles?${params.toString()}`);
+      if (!res.ok) throw new Error('Erreur réseau');
+
       const data = await res.json();
-      if (data.success) setArticles(data.data);
-    } catch {
-      notify('error', 'Erreur lors du chargement des articles.');
+      if (!data.success) throw new Error(data.message);
+
+      if (currentSkip === 0) {
+        setArticles(data.data || []);
+      } else {
+        setArticles(prev => [...prev, ...data.data]);
+      }
+
+      setTotal(data.pagination?.total || 0);
+      setSkip(currentSkip);
+    } catch (error) {
+      console.error('Fetch articles error:', error);
+      notify('error', 'Erreur lors du chargement.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [debouncedSearch, sortBy, sortOrder, filterFamilleId, TAKE]);
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const res = await fetch('/api/produits');
       const data = await res.json();
-      if (data.success) setCategories(data.data);
-    } catch {}
-  };
-
-  useEffect(() => {
-    fetchArticles();
-    fetchCategories();
+      if (data.success) setCategories(data.data || []);
+    } catch (error) {
+      console.error('Fetch categories error:', error);
+    }
   }, []);
 
+  // Initial load
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
+  // Reload articles when search/filters change
+  useEffect(() => {
+    fetchArticles(0);
+  }, [debouncedSearch, sortBy, sortOrder, filterFamilleId, fetchArticles]);
+
+  // ===== MODAL & FORM ACTIONS =====
   const openAdd = () => {
+    setSelectedArticle(null);
     setForm({ refDicsa: '', refEtn: '', designation: '', familleOriginale: '', familleId: '' });
     setImageFile(null);
     setPdfFile(null);
@@ -94,7 +178,7 @@ export default function AdminProduitsPage() {
       refEtn: article.refEtn || '',
       designation: article.designation || '',
       familleOriginale: article.familleOriginale || '',
-      familleId: article.famille?.nom || '',
+      familleId: article.famille?.id || '',
     });
     setImagePreview(article.imageUrl || '');
     setImageFile(null);
@@ -122,9 +206,10 @@ export default function AdminProduitsPage() {
 
   const handleSave = async () => {
     if (!form.designation || !form.refEtn) {
-      notify('error', 'La désignation et la référence ETN sont obligatoires.');
+      notify('error', 'Désignation et référence ETN obligatoires.');
       return;
     }
+
     setSaving(true);
     try {
       const formData = new FormData();
@@ -132,11 +217,11 @@ export default function AdminProduitsPage() {
       formData.append('refEtn', form.refEtn);
       formData.append('designation', form.designation);
       formData.append('familleOriginale', form.familleOriginale);
-      formData.append('familleId', selectedFamilleId || form.familleId);
+      formData.append('familleId', form.familleId);
       if (imageFile) formData.append('image', imageFile);
       if (pdfFile) formData.append('pdf', pdfFile);
 
-      const url = modalMode === 'edit' && selectedArticle
+      const url = modalMode === 'edit' && selectedArticle 
         ? `/api/admin/articles/${selectedArticle.id}`
         : '/api/admin/articles';
       const method = modalMode === 'edit' ? 'PUT' : 'POST';
@@ -144,15 +229,14 @@ export default function AdminProduitsPage() {
       const res = await fetch(url, { method, body: formData });
       const data = await res.json();
 
-      if (data.success) {
-        notify('success', modalMode === 'edit' ? 'Article modifié avec succès.' : 'Article ajouté avec succès.');
-        closeModal();
-        fetchArticles();
-      } else {
-        notify('error', data.message || 'Erreur lors de la sauvegarde.');
-      }
-    } catch {
-      notify('error', 'Erreur réseau.');
+      if (!data.success) throw new Error(data.message);
+
+      notify('success', modalMode === 'edit' ? 'Article modifié.' : 'Article créé.');
+      closeModal();
+      fetchArticles(0); // Recharge la liste
+    } catch (error) {
+      console.error('Save error:', error);
+      notify('error', 'Erreur lors de la sauvegarde.');
     } finally {
       setSaving(false);
     }
@@ -162,142 +246,283 @@ export default function AdminProduitsPage() {
     try {
       const res = await fetch(`/api/admin/articles/${id}`, { method: 'DELETE' });
       const data = await res.json();
-      if (data.success) {
-        notify('success', 'Article supprimé.');
-        fetchArticles();
-      } else {
-        notify('error', 'Erreur lors de la suppression.');
-      }
-    } catch {
-      notify('error', 'Erreur réseau.');
-    } finally {
+
+      if (!data.success) throw new Error(data.message);
+
+      notify('success', 'Article supprimé.');
       setDeleteConfirm(null);
+      fetchArticles(0);
+    } catch (error) {
+      console.error('Delete error:', error);
+      notify('error', 'Erreur lors de la suppression.');
     }
   };
 
-  const filtered = articles.filter(a =>
-    a.designation?.toLowerCase().includes(search.toLowerCase()) ||
-    a.refEtn?.toLowerCase().includes(search.toLowerCase()) ||
-    a.refDicsa?.toLowerCase().includes(search.toLowerCase())
-  );
+  const scrollToTop = () => {
+    pageTopRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
-  // Hiérarchie catégorie -> sous-catégorie -> famille
-  const sousCats = categories.find(c => c.id === selectedCatId)?.sousCategories || [];
-  const familles = sousCats.find((s: any) => s.id === selectedSousCatId)?.familles || [];
+  const loadMore = () => {
+    if (hasMore && !loading) {
+      fetchArticles(skip + TAKE);
+    }
+  };
 
+  // ===== RENDER =====
   return (
-    <div className="space-y-6">
-      {/* Notification */}
+    <div ref={pageTopRef} className="min-h-screen bg-gray-50">
+      {/* Header avec titre et boutons d'actions */}
+      <div className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-[#00183A]">Gestion des produits</h1>
+            <p className="text-sm text-gray-500 mt-1">{total} produit{total !== 1 ? 's' : ''}</p>
+          </div>
+          <button
+            onClick={openAdd}
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#00183A] hover:bg-blue-900 text-white font-bold rounded-xl transition-colors"
+          >
+            <MdAdd className="w-5 h-5" />
+            Ajouter un produit
+          </button>
+        </div>
+      </div>
+
+      {/* Notifs */}
       {notification && (
-        <div className={`fixed top-6 right-6 z-50 px-5 py-3 rounded-xl shadow-lg text-white font-semibold text-sm flex items-center gap-3 transition-all ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
+        <div className={`fixed top-4 right-4 px-6 py-3 rounded-xl text-white font-medium z-50 ${
+          notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+        }`}>
           {notification.msg}
-          <button onClick={() => setNotification(null)}><MdClose /></button>
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-[#00183A]">Gestion des Produits</h1>
-          <p className="text-gray-400 text-sm mt-1">{articles.length} article(s) au total</p>
+      {/* Main content */}
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        {/* Barre de recherche et filtres */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 space-y-4">
+          {/* Ligne 1: Recherche */}
+          <div className="flex gap-3">
+            <div className="flex-1 relative">
+              <MdSearch className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Chercher par désignation, ETN, DICSA..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+            </div>
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <MdClose className="w-5 h-5" />
+              </button>
+            )}
+          </div>
+
+          {/* Ligne 2: Filtres et tri */}
+          <div className="flex gap-3 flex-wrap">
+            {/* Filtre catégorie */}
+            <div className="flex items-center gap-2">
+              <MdFilterList className="w-5 h-5 text-gray-500" />
+              <select
+                value={filterFamilleId}
+                onChange={e => {
+                  setFilterFamilleId(e.target.value);
+                  setSkip(0);
+                }}
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="">Toutes les catégories</option>
+                {categories.flatMap(cat =>
+                  cat.sousCategories?.flatMap((subcat: any) =>
+                    subcat.familles?.map((fam: any) => (
+                      <option key={fam.id} value={fam.id}>
+                        {cat.nom} → {subcat.nom} → {fam.nom}
+                      </option>
+                    ))
+                  )
+                )}
+              </select>
+            </div>
+
+            {/* Tri */}
+            <div className="flex items-center gap-2">
+              <MdUnfoldMore className="w-5 h-5 text-gray-500" />
+              <select
+                value={sortBy}
+                onChange={e => setSortBy(e.target.value)}
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="designation">Trier par désignation</option>
+                <option value="refEtn">Trier par ETN</option>
+                <option value="familleOriginale">Trier par famille</option>
+                <option value="createdAt">Trier par date</option>
+              </select>
+              <button
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                className={`px-3 py-2 border rounded-lg transition-colors ${
+                  sortOrder === 'asc'
+                    ? 'border-blue-300 bg-blue-50 text-blue-600'
+                    : 'border-gray-200 text-gray-600 hover:bg-gray-100'
+                }`}
+                title={sortOrder === 'asc' ? 'Croissant' : 'Décroissant'}
+              >
+                {sortOrder === 'asc' ? '↑' : '↓'}
+              </button>
+            </div>
+
+            {/* Bouton remontée */}
+            {showScrollTop && (
+              <button
+                onClick={scrollToTop}
+                className="px-4 py-2 flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors text-sm font-medium"
+              >
+                <MdArrowUpward className="w-4 h-4" />
+                Haut de la page
+              </button>
+            )}
+          </div>
         </div>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-2 bg-[#00183A] hover:bg-blue-900 text-white font-bold px-5 py-3 rounded-xl transition-colors shadow-md"
-        >
-          <MdAdd className="w-5 h-5" /> Ajouter un article
-        </button>
+
+        {/* Tableau */}
+        {articles.length > 0 ? (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-6 py-3 text-left font-bold text-gray-700">Désignation</th>
+                    <th className="px-6 py-3 text-left font-bold text-gray-700">Réf. ETN</th>
+                    <th className="px-6 py-3 text-left font-bold text-gray-700">Catégorie</th>
+                    <th className="px-6 py-3 text-left font-bold text-gray-700">Fichiers</th>
+                    <th className="px-6 py-3 text-center font-bold text-gray-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {articles.map(article => (
+                    <tr
+                      key={article.id}
+                      className="border-b border-gray-100 hover:bg-blue-50/30 transition-colors"
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          {article.imageUrl && (
+                            <img
+                              src={article.imageUrl}
+                              alt={article.designation}
+                              className="w-10 h-10 object-contain rounded"
+                            />
+                          )}
+                          <div>
+                            <p className="font-medium text-gray-900 line-clamp-2">{article.designation}</p>
+                            <p className="text-xs text-gray-500">{article.familleOriginale}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-gray-600 font-mono text-xs">{article.refEtn}</td>
+                      <td className="px-6 py-4 text-gray-600">
+                        <div className="text-xs space-y-0.5">
+                          {article.famille?.sousCategorie?.categorie && (
+                            <p className="text-gray-700 font-medium">
+                              {article.famille.sousCategorie.categorie.nom}
+                            </p>
+                          )}
+                          {article.famille?.sousCategorie && (
+                            <p className="text-gray-600">{article.famille.sousCategorie.nom}</p>
+                          )}
+                          {article.famille && <p className="text-gray-500">{article.famille.nom}</p>}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          {article.imageUrl && (
+                            <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium">
+                              <MdImage className="w-3 h-3" />
+                              Img
+                            </span>
+                          )}
+                          {article.pdfUrl && (
+                            <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-medium">
+                              <MdPictureAsPdf className="w-3 h-3" />
+                              PDF
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => openEdit(article)}
+                            className="p-2 hover:bg-blue-100 rounded-lg transition-colors"
+                            title="Modifier"
+                          >
+                            <MdEdit className="w-5 h-5 text-blue-600" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirm(article.id)}
+                            className="p-2 hover:bg-red-100 rounded-lg transition-colors"
+                            title="Supprimer"
+                          >
+                            <MdDelete className="w-5 h-5 text-red-600" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Load more */}
+            {hasMore && (
+              <div className="border-t border-gray-100 p-4 text-center">
+                <button
+                  onClick={loadMore}
+                  disabled={loading}
+                  className="px-6 py-2.5 bg-blue-100 hover:bg-blue-200 text-blue-700 font-medium rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {loading ? 'Chargement...' : 'Charger plus'}
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Aucun produit trouvé.</p>
+          </div>
+        )}
       </div>
 
-      {/* Barre de recherche */}
-      <div className="relative">
-        <MdSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-        <input
-          type="text"
-          placeholder="Rechercher par désignation, ref ETN, ref DICSA..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"
-        />
-      </div>
-
-      {/* Tableau */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-[#00183A] text-white text-xs uppercase tracking-wider">
-                <th className="py-4 px-4">Image</th>
-                <th className="py-4 px-4">Réf ETN</th>
-                <th className="py-4 px-4">Réf DICSA</th>
-                <th className="py-4 px-4">Désignation</th>
-                <th className="py-4 px-4">Famille</th>
-                <th className="py-4 px-4 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {loading ? (
-                <tr><td colSpan={6} className="py-12 text-center text-gray-400">Chargement...</td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={6} className="py-12 text-center text-gray-400">Aucun article trouvé.</td></tr>
-              ) : filtered.map(article => (
-                <tr key={article.id} className="hover:bg-blue-50/40 transition-colors group">
-                  <td className="py-3 px-4">
-                    {article.imageUrl ? (
-                      <img src={article.imageUrl} alt="" className="w-12 h-12 object-contain rounded-md bg-slate-50 mix-blend-multiply" />
-                    ) : (
-                      <div className="w-12 h-12 bg-slate-100 rounded-md flex items-center justify-center text-slate-300">
-                        <MdImage className="w-6 h-6" />
-                      </div>
-                    )}
-                  </td>
-                  <td className="py-3 px-4 font-mono text-sm font-bold text-blue-700">{article.refEtn || '-'}</td>
-                  <td className="py-3 px-4 font-mono text-sm text-gray-500">{article.refDicsa || '-'}</td>
-                  <td className="py-3 px-4 text-sm text-gray-800 max-w-xs truncate">{article.designation}</td>
-                  <td className="py-3 px-4 text-sm text-gray-500">{article.familleOriginale || article.famille?.nom || '-'}</td>
-                  <td className="py-3 px-4 text-center">
-                    <div className="flex items-center justify-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => openEdit(article)}
-                        className="p-2 rounded-lg hover:bg-blue-100 text-blue-700 transition-colors"
-                        title="Modifier"
-                      >
-                        <MdEdit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirm(article.id)}
-                        className="p-2 rounded-lg hover:bg-red-100 text-red-600 transition-colors"
-                        title="Supprimer"
-                      >
-                        <MdDelete className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Modal Ajout / Modification */}
+      {/* Modal Ajout/Modification */}
       {modalMode && (
         <div className="fixed inset-0 bg-black/60 z-40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+            {/* Header */}
             <div className="flex justify-between items-center p-6 border-b border-gray-100 sticky top-0 bg-white z-10">
               <h2 className="text-xl font-bold text-[#00183A]">
-                {modalMode === 'add' ? 'Ajouter un article' : 'Modifier l\'article'}
+                {modalMode === 'add' ? 'Ajouter un produit' : 'Modifier le produit'}
               </h2>
-              <button onClick={closeModal} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+              <button
+                onClick={closeModal}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
                 <MdClose className="w-5 h-5 text-gray-500" />
               </button>
             </div>
 
+            {/* Contenu */}
             <div className="p-6 space-y-5">
               {/* Références */}
-              <div className="grid grid-cols-2 gap-4">
+              <div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Référence ETN *</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">
+                    Référence ETN *
+                  </label>
                   <input
                     type="text"
                     value={form.refEtn}
@@ -306,79 +531,97 @@ export default function AdminProduitsPage() {
                     placeholder="ex: ETN-1234"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Référence DICSA</label>
-                  <input
-                    type="text"
-                    value={form.refDicsa}
-                    onChange={e => setForm(f => ({ ...f, refDicsa: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                    placeholder="ex: MPR12CJ"
-                  />
-                </div>
               </div>
 
               {/* Désignation */}
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Désignation *</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">
+                  Désignation *
+                </label>
                 <input
                   type="text"
                   value={form.designation}
                   onChange={e => setForm(f => ({ ...f, designation: e.target.value }))}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  placeholder="Description complète du produit"
+                  placeholder="Description du produit"
                 />
               </div>
 
-              {/* Famille originale */}
+              {/* Famille/Gamme */}
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Famille / Gamme</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">
+                  Famille/Gamme
+                </label>
                 <input
                   type="text"
                   value={form.familleOriginale}
                   onChange={e => setForm(f => ({ ...f, familleOriginale: e.target.value }))}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  placeholder="ex: Moteurs hydrauliques à pistons"
+                  placeholder="ex: Moteurs hydrauliques"
                 />
               </div>
 
               {/* Hiérarchie catalogue */}
               <div className="bg-blue-50 rounded-xl p-4 space-y-3 border border-blue-100">
-                <p className="text-xs font-bold text-blue-700 uppercase">Rattacher au catalogue</p>
+                <p className="text-xs font-bold text-blue-700 uppercase">📁 Rattacher au catalogue</p>
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Catégorie</label>
+                  <label className="block text-xs text-gray-700 font-medium mb-2">Catégorie</label>
                   <select
                     value={selectedCatId}
-                    onChange={e => { setSelectedCatId(e.target.value); setSelectedSousCatId(''); setSelectedFamilleId(''); }}
+                    onChange={e => {
+                      setSelectedCatId(e.target.value);
+                      setSelectedSousCatId('');
+                      setSelectedFamilleId('');
+                    }}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   >
                     <option value="">-- Sélectionner --</option>
-                    {categories.map((c: any) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+                    {categories.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.nom}
+                      </option>
+                    ))}
                   </select>
                 </div>
+
                 {sousCats.length > 0 && (
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Sous-catégorie</label>
+                    <label className="block text-xs text-gray-700 font-medium mb-2">Sous-catégorie</label>
                     <select
                       value={selectedSousCatId}
-                      onChange={e => { setSelectedSousCatId(e.target.value); setSelectedFamilleId(''); }}
+                      onChange={e => {
+                        setSelectedSousCatId(e.target.value);
+                        setSelectedFamilleId('');
+                      }}
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     >
                       <option value="">-- Sélectionner --</option>
-                      {sousCats.map((s: any) => <option key={s.id} value={s.id}>{s.nom}</option>)}
+                      {sousCats.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.nom}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 )}
+
                 {familles.length > 0 && (
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Famille Prisma</label>
+                    <label className="block text-xs text-gray-700 font-medium mb-2">Sous Sous-catégorie</label>
                     <select
                       value={selectedFamilleId}
-                      onChange={e => setSelectedFamilleId(e.target.value)}
+                      onChange={e => {
+                        setSelectedFamilleId(e.target.value);
+                        setForm(f => ({ ...f, familleId: e.target.value }));
+                      }}
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     >
                       <option value="">-- Sélectionner --</option>
-                      {familles.map((f: any) => <option key={f.id} value={f.id}>{f.nom}</option>)}
+                      {familles.map(f => (
+                        <option key={f.id} value={f.id}>
+                          {f.nom}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 )}
@@ -386,7 +629,9 @@ export default function AdminProduitsPage() {
 
               {/* Upload Image */}
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Image produit (.png)</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">
+                  Image produit (png/jpg)
+                </label>
                 <div
                   onClick={() => imageInputRef.current?.click()}
                   className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all"
@@ -400,29 +645,52 @@ export default function AdminProduitsPage() {
                     </div>
                   )}
                 </div>
-                <input ref={imageInputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleImageChange} />
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  onChange={handleImageChange}
+                />
                 {imageFile && <p className="text-xs text-green-600 mt-1">✓ {imageFile.name}</p>}
               </div>
 
               {/* Upload PDF */}
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Documentation PDF</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">
+                  Documentation PDF
+                </label>
                 <div
                   onClick={() => pdfInputRef.current?.click()}
-                  className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center cursor-pointer hover:border-yellow-400 hover:bg-yellow-50/30 transition-all"
+                  className="border-2 border-dashed border-yellow-300 rounded-xl p-4 text-center cursor-pointer hover:border-yellow-500 hover:bg-yellow-50/30 transition-all bg-yellow-50/20"
                 >
-                  <div className="flex flex-col items-center gap-2 text-gray-400">
+                  <div className="flex flex-col items-center gap-2 text-yellow-700">
                     <MdPictureAsPdf className="w-8 h-8" />
-                    <span className="text-sm">{pdfFile ? pdfFile.name : 'Cliquer pour choisir un PDF'}</span>
+                    <span className="text-sm font-medium">
+                      {pdfFile ? pdfFile.name : 'Cliquer pour ajouter un PDF'}
+                    </span>
                   </div>
                 </div>
-                <input ref={pdfInputRef} type="file" accept="application/pdf" className="hidden" onChange={handlePdfChange} />
+                <input
+                  ref={pdfInputRef}
+                  type="file"
+                  accept="application/pdf"
+                  className="hidden"
+                  onChange={handlePdfChange}
+                />
                 {pdfFile && <p className="text-xs text-green-600 mt-1">✓ {pdfFile.name}</p>}
+                {!pdfFile && modalMode === 'edit' && selectedArticle?.pdfUrl && (
+                  <p className="text-xs text-blue-600 mt-1">📄 PDF actuel conservé</p>
+                )}
               </div>
             </div>
 
+            {/* Footer */}
             <div className="flex justify-end gap-3 p-6 border-t border-gray-100 sticky bottom-0 bg-white">
-              <button onClick={closeModal} className="px-5 py-2.5 border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 font-medium transition-colors">
+              <button
+                onClick={closeModal}
+                className="px-5 py-2.5 border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 font-medium transition-colors"
+              >
                 Annuler
               </button>
               <button
@@ -430,7 +698,11 @@ export default function AdminProduitsPage() {
                 disabled={saving}
                 className="flex items-center gap-2 px-5 py-2.5 bg-[#00183A] hover:bg-blue-900 text-white font-bold rounded-xl transition-colors disabled:opacity-60"
               >
-                {saving ? <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" /> : <MdSave className="w-4 h-4" />}
+                {saving ? (
+                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                ) : (
+                  <MdSave className="w-4 h-4" />
+                )}
                 {saving ? 'Sauvegarde...' : 'Sauvegarder'}
               </button>
             </div>
@@ -445,13 +717,21 @@ export default function AdminProduitsPage() {
             <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <MdDelete className="w-7 h-7 text-red-600" />
             </div>
-            <h3 className="text-lg font-bold text-gray-800 mb-2">Supprimer cet article ?</h3>
-            <p className="text-gray-500 text-sm mb-6">Cette action est irréversible. L'article sera supprimé de la base de données.</p>
+            <h3 className="text-lg font-bold text-gray-800 mb-2">Supprimer ce produit ?</h3>
+            <p className="text-gray-500 text-sm mb-6">
+              Cette action est irréversible. Le produit sera supprimé de la base de données.
+            </p>
             <div className="flex gap-3">
-              <button onClick={() => setDeleteConfirm(null)} className="flex-1 py-2.5 border border-gray-200 rounded-xl font-medium hover:bg-gray-50 transition-colors">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 py-2.5 border border-gray-200 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+              >
                 Annuler
               </button>
-              <button onClick={() => handleDelete(deleteConfirm)} className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-colors">
+              <button
+                onClick={() => handleDelete(deleteConfirm)}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-colors"
+              >
                 Supprimer
               </button>
             </div>

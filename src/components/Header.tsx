@@ -67,7 +67,13 @@ export default function Header() {
               <Link href="/" className="hover:text-blue-700 transition-colors">Accueil</Link>
               <Link href="/about" className="hover:text-blue-700 transition-colors">À propos</Link>
               {userData?.authenticated && (
-                <Link href="/produits" className="text-blue-700 font-bold border-b-2 border-blue-700">Produits</Link>
+                <Link 
+                  href="/produits" 
+                  onClick={() => {
+                  window.dispatchEvent(new Event('reset-produits-page'));
+                  }}
+                  className="text-blue-700 font-bold border-b-2 border-blue-700">Produits
+                </Link>
               )}
               <Link href="/contact" className="hover:text-blue-700 transition-colors">Contact</Link>
             </nav>

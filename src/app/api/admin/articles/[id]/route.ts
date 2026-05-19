@@ -24,8 +24,9 @@ async function saveFile(file: File, folder: 'images/produits' | 'pdfs'): Promise
   const buffer = Buffer.from(bytes);
   const dir = path.join(process.cwd(), 'public', folder);
   await mkdir(dir, { recursive: true });
-  const filename = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-  await writeFile(path.join(dir, filename), buffer);
+  const filename = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;
+  const filepath = path.join(dir, filename);
+  await writeFile(filepath, buffer);
   return `/${folder}/${filename}`;
 }
 
@@ -36,7 +37,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 
   try {
-    const { id } = params;
+    const { id } = await params;
     const formData = await request.formData();
     const refDicsa = formData.get('refDicsa') as string;
     const refEtn = formData.get('refEtn') as string;
@@ -58,12 +59,21 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       updateData.imageUrl = await saveFile(imageFile, 'images/produits');
     }
     if (pdfFile && pdfFile.size > 0) {
-      // updateData.pdfUrl = await saveFile(pdfFile, 'pdfs'); // Décommenter si champ dans schéma
+      updateData.pdfUrl = await saveFile(pdfFile, 'pdfs');
     }
 
     const article = await prisma.article.update({
       where: { id },
       data: updateData,
+      include: {
+        famille: {
+          include: {
+            sousCategorie: {
+              include: { categorie: true }
+            }
+          }
+        }
+      }
     });
 
     return NextResponse.json({ success: true, data: article });
@@ -80,7 +90,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   }
 
   try {
-    const { id } = params;
+    const { id } = await params;
     await prisma.article.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -38,12 +38,16 @@ export default function AdminProduitsPage() {
     familleId: '',
   });
 
-  // Fichiers
+  // Fichiers & États Drag and Drop
   const imageInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>('');
+  
+  // 🌟 NOUVEAU : États pour l'effet de survol du Glisser-Déposer
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
+  const [isDraggingPdf, setIsDraggingPdf] = useState(false);
 
   // Catégories
   const [categories, setCategories] = useState<any[]>([]);
@@ -233,7 +237,7 @@ export default function AdminProduitsPage() {
 
       notify('success', modalMode === 'edit' ? 'Article modifié.' : 'Article créé.');
       closeModal();
-      fetchArticles(0); // Recharge la liste
+      fetchArticles(0);
     } catch (error) {
       console.error('Save error:', error);
       notify('error', 'Erreur lors de la sauvegarde.');
@@ -268,7 +272,6 @@ export default function AdminProduitsPage() {
     }
   };
 
-  // ===== RENDER =====
   return (
     <div ref={pageTopRef} className="min-h-screen bg-gray-50">
       {/* Header avec titre et boutons d'actions */}
@@ -301,7 +304,6 @@ export default function AdminProduitsPage() {
       <div className="max-w-7xl mx-auto px-6 py-6">
         {/* Barre de recherche et filtres */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 space-y-4">
-          {/* Ligne 1: Recherche */}
           <div className="flex gap-3">
             <div className="flex-1 relative">
               <MdSearch className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
@@ -324,9 +326,7 @@ export default function AdminProduitsPage() {
             )}
           </div>
 
-          {/* Ligne 2: Filtres et tri */}
           <div className="flex gap-3 flex-wrap">
-            {/* Filtre catégorie */}
             <div className="flex items-center gap-2">
               <MdFilterList className="w-5 h-5 text-gray-500" />
               <select
@@ -350,7 +350,6 @@ export default function AdminProduitsPage() {
               </select>
             </div>
 
-            {/* Tri */}
             <div className="flex items-center gap-2">
               <MdUnfoldMore className="w-5 h-5 text-gray-500" />
               <select
@@ -376,7 +375,6 @@ export default function AdminProduitsPage() {
               </button>
             </div>
 
-            {/* Bouton remontée */}
             {showScrollTop && (
               <button
                 onClick={scrollToTop}
@@ -627,21 +625,46 @@ export default function AdminProduitsPage() {
                 )}
               </div>
 
-              {/* Upload Image */}
+              {/* 🌟 ZONE DRAG & DROP : Image Produit */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">
-                  Image produit (png/jpg)
+                  Image produit (png/jpg/webp)
                 </label>
                 <div
                   onClick={() => imageInputRef.current?.click()}
-                  className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDraggingImage(true);
+                  }}
+                  onDragLeave={() => setIsDraggingImage(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDraggingImage(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (file && file.type.startsWith('image/')) {
+                      setImageFile(file);
+                      setImagePreview(URL.createObjectURL(file));
+                    } else if (file) {
+                      notify('error', 'Veuillez déposer un fichier image valide.');
+                    }
+                  }}
+                  className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all flex flex-col justify-center items-center min-h-[120px] ${
+                    isDraggingImage
+                      ? 'border-blue-500 bg-blue-50/80 scale-[1.01]'
+                      : 'border-gray-200 hover:border-blue-400 hover:bg-blue-50/20'
+                  }`}
                 >
                   {imagePreview ? (
-                    <img src={imagePreview} alt="preview" className="h-24 object-contain mx-auto" />
+                    <div className="relative group">
+                      <img src={imagePreview} alt="preview" className="h-24 object-contain mx-auto" />
+                      <p className="text-xs text-gray-400 mt-2 text-center">Déposez une autre image pour la remplacer</p>
+                    </div>
                   ) : (
                     <div className="flex flex-col items-center gap-2 text-gray-400">
-                      <MdImage className="w-8 h-8" />
-                      <span className="text-sm">Cliquer pour choisir une image</span>
+                      <MdImage className={`w-8 h-8 transition-transform ${isDraggingImage ? 'scale-110 text-blue-500' : ''}`} />
+                      <span className="text-sm font-medium">
+                        {isDraggingImage ? 'Déposez l\'image ici !' : 'Glissez-déposez une image ou cliquez pour parcourir'}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -652,22 +675,46 @@ export default function AdminProduitsPage() {
                   className="hidden"
                   onChange={handleImageChange}
                 />
-                {imageFile && <p className="text-xs text-green-600 mt-1">✓ {imageFile.name}</p>}
+                {imageFile && <p className="text-xs text-green-600 mt-1">✓ Prêt pour l'envoi : {imageFile.name}</p>}
               </div>
 
-              {/* Upload PDF */}
+              {/* 🌟 ZONE DRAG & DROP : Documentation PDF */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">
                   Documentation PDF
                 </label>
                 <div
                   onClick={() => pdfInputRef.current?.click()}
-                  className="border-2 border-dashed border-yellow-300 rounded-xl p-4 text-center cursor-pointer hover:border-yellow-500 hover:bg-yellow-50/30 transition-all bg-yellow-50/20"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDraggingPdf(true);
+                  }}
+                  onDragLeave={() => setIsDraggingPdf(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDraggingPdf(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (file && (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'))) {
+                      setPdfFile(file);
+                    } else if (file) {
+                      notify('error', 'Veuillez déposer un fichier PDF uniquement.');
+                    }
+                  }}
+                  className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all flex flex-col justify-center items-center ${
+                    isDraggingPdf
+                      ? 'border-yellow-500 bg-yellow-50/80 scale-[1.01]'
+                      : 'border-yellow-200 hover:border-yellow-500 hover:bg-yellow-50/30 bg-yellow-50/10'
+                  }`}
                 >
                   <div className="flex flex-col items-center gap-2 text-yellow-700">
-                    <MdPictureAsPdf className="w-8 h-8" />
+                    <MdPictureAsPdf className={`w-8 h-8 transition-transform ${isDraggingPdf ? 'scale-110 text-yellow-600' : ''}`} />
                     <span className="text-sm font-medium">
-                      {pdfFile ? pdfFile.name : 'Cliquer pour ajouter un PDF'}
+                      {isDraggingPdf 
+                        ? 'Lâchez le PDF ici !' 
+                        : pdfFile 
+                          ? `Fichier sélectionné : ${pdfFile.name}` 
+                          : 'Glissez-déposez un PDF ou cliquez pour parcourir'
+                      }
                     </span>
                   </div>
                 </div>
@@ -678,7 +725,7 @@ export default function AdminProduitsPage() {
                   className="hidden"
                   onChange={handlePdfChange}
                 />
-                {pdfFile && <p className="text-xs text-green-600 mt-1">✓ {pdfFile.name}</p>}
+                {pdfFile && <p className="text-xs text-green-600 mt-1">✓ Prêt pour l'envoi : {pdfFile.name}</p>}
                 {!pdfFile && modalMode === 'edit' && selectedArticle?.pdfUrl && (
                   <p className="text-xs text-blue-600 mt-1">📄 PDF actuel conservé</p>
                 )}

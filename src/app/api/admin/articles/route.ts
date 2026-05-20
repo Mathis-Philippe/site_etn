@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { jwtVerify } from 'jose';
-import { writeFile, mkdir } from 'fs/promises';
+import { writeFile, mkdir, readdir } from 'fs/promises'; // 🌟 Utilisation de readdir pour checker sans casser les majuscules
 import path from 'path';
 
 const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret');
@@ -19,18 +19,40 @@ async function isAdmin(request: NextRequest): Promise<boolean> {
   }
 }
 
-async function saveFile(file: File, folder: 'images/produits' | 'pdfs'): Promise<string> {
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
+// 🛑 Sauvegarde 100% brute : Garde les accents, majuscules et symboles, bloque si déjà présent
+async function saveFileUnique(file: File, folder: 'images/produits' | 'pdfs'): Promise<string> {
+  // 🌟 ON GARDE LE NOM BRUT STRICT (Majuscules, accents, espaces, +, etc.)
+  const filename = file.name; 
+  
   const dir = path.join(process.cwd(), 'public', folder);
-  await mkdir(dir, { recursive: true });
-  const filename = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;
   const filepath = path.join(dir, filename);
-  await writeFile(filepath, buffer);
+  
+  await mkdir(dir, { recursive: true });
+
+  // Pour éviter les doublons invisibles (ex: COFFRE.pdf et coffre.pdf), on regarde dans le dossier
+  let fichierExiste = false;
+  try {
+    const fichiersExistants = await readdir(dir);
+    // On compare en minuscules juste pour la sécurité anti-doublon, peu importe l'OS
+    fichierExiste = fichiersExistants.some(f => f.toLowerCase() === filename.toLowerCase());
+  } catch {
+    fichierExiste = false;
+  }
+
+  if (fichierExiste) {
+    console.log(`🛑 [STOP] Le fichier "${filename}" existe déjà dans public/${folder}. Aucun doublon ajouté.`);
+  } else {
+    // S'il n'existe pas, on l'écrit avec son VRAI NOM d'origine (accents + majuscules)
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    await writeFile(filepath, buffer);
+    console.log(`💾 [NOUVEAU] Fichier enregistré avec son nom d'origine : public/${folder}/${filename}`);
+  }
+
   return `/${folder}/${filename}`;
 }
 
-// GET /api/admin/articles — Liste avec pagination, recherche et tri
+// GET /api/admin/articles
 export async function GET(request: NextRequest) {
   if (!(await isAdmin(request))) {
     return NextResponse.json({ success: false, message: 'Accès refusé.' }, { status: 403 });
@@ -45,28 +67,22 @@ export async function GET(request: NextRequest) {
     const sortBy = url.searchParams.get('sortBy') || 'designation';
     const sortOrder = url.searchParams.get('sortOrder') || 'asc';
 
-    // Construire le filtre de recherche
     const where: any = {};
     if (search.trim()) {
-      // Compatible avec Prisma 5.x et 6.x
-      // Pas de 'mode' : insensitive, on utilise contains simple
       where.OR = [
         { designation: { contains: search } },
         { refEtn: { contains: search } },
-        { refDicsa: { contains: search } },
       ];
     }
     if (familleId) {
       where.familleId = familleId;
     }
 
-    // Construire l'ordre de tri valide
     const orderBy: any = {};
-    const validSortFields = ['designation', 'refEtn', 'refDicsa', 'familleOriginale', 'createdAt'];
+    const validSortFields = ['designation', 'refEtn', 'familleOriginale', 'createdAt'];
     const field = validSortFields.includes(sortBy) ? sortBy : 'designation';
     orderBy[field] = sortOrder === 'desc' ? 'desc' : 'asc';
 
-    // Requête optimisée
     const [articles, total] = await Promise.all([
       prisma.article.findMany({
         where,
@@ -99,7 +115,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/admin/articles — Créer un article
+// POST /api/admin/articles
 export async function POST(request: NextRequest) {
   if (!(await isAdmin(request))) {
     return NextResponse.json({ success: false, message: 'Accès refusé.' }, { status: 403 });
@@ -107,7 +123,6 @@ export async function POST(request: NextRequest) {
 
   try {
     const formData = await request.formData();
-    const refDicsa = formData.get('refDicsa') as string;
     const refEtn = formData.get('refEtn') as string;
     const designation = formData.get('designation') as string;
     const familleOriginale = formData.get('familleOriginale') as string;
@@ -116,28 +131,27 @@ export async function POST(request: NextRequest) {
     const pdfFile = formData.get('pdf') as File | null;
 
     if (!designation || !refEtn) {
-      return NextResponse.json(
-        { success: false, message: 'Désignation et référence ETN obligatoires.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: 'Désignation et référence ETN obligatoires.' }, { status: 400 });
     }
 
-    let imageUrl: string | undefined;
-    let pdfUrl: string | undefined;
+    let imageUrl: string | null = null;
+    let pdfUrl: string | null = null;
 
     if (imageFile && imageFile.size > 0) {
-      imageUrl = await saveFile(imageFile, 'images/produits');
+      imageUrl = await saveFileUnique(imageFile, 'images/produits');
     }
     if (pdfFile && pdfFile.size > 0) {
-      pdfUrl = await saveFile(pdfFile, 'pdfs');
+      pdfUrl = await saveFileUnique(pdfFile, 'pdfs');
     }
 
     const article = await prisma.article.create({
-    data: {
+      data: {
         refEtn: refEtn.trim(),
         designation: designation.trim(),
         familleOriginale: familleOriginale || null,
-        familleId: familleId,
+        familleId: familleId || null,
+        imageUrl,
+        pdfUrl,
       },
       include: {
         famille: {

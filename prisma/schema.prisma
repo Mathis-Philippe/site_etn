@@ -15,6 +15,7 @@ model Client {
   nomEntreprise String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  commandes Commande[]
 }
 
 model ResetToken {
@@ -68,4 +69,30 @@ model Article {
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model Commande {
+  id            String   @id @default(cuid())
+  numero        String   @unique // Ex: CMD-2026-0001
+  status        String   @default("En attente") // "En attente", "Validée", "Livrée"
+  totalArticles Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Lien avec ton client
+  clientId      String
+  client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Les lignes d'articles de la commande
+  articles      LigneCommande[]
+}
+
+model LigneCommande {
+  id          String   @id @default(cuid())
+  refEtn      String
+  designation String
+  quantite    Int
+
+  commandeId  String
+  commande    Commande @relation(fields: [commandeId], references: [id], onDelete: Cascade)
 }

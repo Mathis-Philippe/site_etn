@@ -498,7 +498,7 @@ export default function AdminProduitsPage() {
 
       {/* Modal Ajout/Modification */}
       {modalMode && (
-        <div className="fixed inset-0 bg-black/60 z-40 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/60 z-40 flex items-center justify-center p-4 z-[9999]">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto">
             {/* Header */}
             <div className="flex justify-between items-center p-6 border-b border-gray-100 sticky top-0 bg-white z-10">
@@ -555,7 +555,7 @@ export default function AdminProduitsPage() {
                   value={form.familleOriginale}
                   onChange={e => setForm(f => ({ ...f, familleOriginale: e.target.value }))}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  placeholder="ex: Moteurs hydrauliques"
+                  placeholder="ex: Moteurs_hydrauliques (doit être identique au nom du pdf)"
                 />
               </div>
 

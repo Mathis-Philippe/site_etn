@@ -27,6 +27,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Identifiants incorrects." }, { status: 401 });
     }
 
+    await prisma.client.update({
+      where: { id: client.id },
+      data: {
+        codeClient: client.codeClient
+      }
+    });
+
     const token = await new SignJWT({ 
         sub: client.id, 
         codeClient: client.codeClient,

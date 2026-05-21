@@ -58,6 +58,8 @@ export default function ConnexionPage() {
               <input
                 type="text"
                 required
+                name="username"
+                autoComplete="username"
                 value={codeClient}
                 onChange={(e) => setCodeClient(e.target.value)}
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00183A] focus:bg-white transition-all duration-200"
@@ -75,6 +77,8 @@ export default function ConnexionPage() {
               <input
                 type="password"
                 required
+                name="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00183A] focus:bg-white transition-all duration-200"

@@ -18,7 +18,7 @@ type User = {
   email: string;
   nomEntreprise: string;
   codeClient: string;
-  role: 'USER' | 'ADMIN';
+  role: 'CLIENT' | 'ADMIN';
   createdAt: string;
   updatedAt?: string; // Optionnel au cas où l'API l'omet
   commandes: Commande[];
@@ -42,7 +42,7 @@ export default function AdminUsersPage() {
   const [password, setPassword] = useState('');
   const [nomEntreprise, setNomEntreprise] = useState('');
   const [codeClient, setCodeClient] = useState('');
-  const [role, setRole] = useState<'USER' | 'ADMIN'>('USER');
+  const [role, setRole] = useState<'CLIENT' | 'ADMIN'>('CLIENT');
 
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
@@ -233,7 +233,7 @@ export default function AdminUsersPage() {
                     <td className="py-4 px-6 text-right">
                       <div className="flex justify-end gap-2">
                         <button
-                          onClick={() => { setSelectedUser(user); setEmail(user.email); setNomEntreprise(user.nomEntreprise); setCodeClient(user.codeClient); setRole(user.role); setPassword(''); setModalMode('edit'); }}
+                          onClick={() => { setSelectedUser(user); setEmail(user.email || ''); setNomEntreprise(user.nomEntreprise || ''); setCodeClient(user.codeClient || ''); setRole(user.role || 'CLIENT'); setPassword(''); setModalMode('edit'); }}
                           className="p-2 text-gray-500 hover:text-blue-600 rounded-lg transition-colors"
                         >
                           <MdEdit className="w-5 h-5" />
@@ -322,8 +322,8 @@ export default function AdminUsersPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Rôle Système</label>
-                  <select value={role} onChange={(e) => setRole(e.target.value as 'USER' | 'ADMIN')} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none cursor-pointer focus:border-blue-500 bg-white">
-                    <option value="USER">USER</option>
+                  <select value={role} onChange={(e) => setRole(e.target.value as 'CLIENT' | 'ADMIN')} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none cursor-pointer focus:border-blue-500 bg-white">
+                    <option value="CLIENT">CLIENT</option>
                     <option value="ADMIN">ADMIN</option>
                   </select>
                 </div>
